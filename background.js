@@ -556,6 +556,148 @@
 		}
 	}
 
+	function runDiagnostics(tab, sessionData) {
+		if (!tab || !isHttpUrl(tab.url)) {
+			return;
+		}
+		chrome.scripting.executeScript({
+			target: { tabId: tab.id, allFrames: true },
+			func: function() {
+				function isOverlayCandidate(element, style, rect) {
+					if (style.position !== 'fixed' && style.position !== 'absolute') {
+						return false;
+					}
+					if (rect.width < window.innerWidth * 0.5 || rect.height < window.innerHeight * 0.5) {
+						return false;
+					}
+					var text = (element.textContent || '').trim();
+					if (text.length > 80) {
+						return false;
+					}
+					return true;
+				}
+
+				function probeContextMenuBlocked() {
+					try {
+						var container = document.body || document.documentElement;
+						if (!container) {
+							return false;
+						}
+						var probe = document.createElement('div');
+						probe.style.cssText = 'position:fixed;top:-9999px;width:1px;height:1px;';
+						container.appendChild(probe);
+						var event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, view: window });
+						var allowed = probe.dispatchEvent(event);
+						if (probe.parentNode) {
+							probe.parentNode.removeChild(probe);
+						}
+						return event.defaultPrevented || !allowed;
+					} catch (error) {
+						return false;
+					}
+				}
+
+				var nodes = document.body ? document.body.querySelectorAll('*') : [];
+				var limit = Math.min(nodes.length, 300);
+				var blockedStyleCount = 0;
+				var inlineHandlerCount = 0;
+				var overlayCount = 0;
+				var shadowCount = 0;
+				for (var i = 0; i < limit; i++) {
+					var el = nodes[i];
+					if (el.shadowRoot) {
+						shadowCount += 1;
+					}
+					var style = window.getComputedStyle(el);
+					if (style) {
+						if (style.userSelect === 'none' ||
+							style.webkitUserSelect === 'none' ||
+							style.MozUserSelect === 'none' ||
+							style.msUserSelect === 'none') {
+							blockedStyleCount += 1;
+						}
+						var rect = el.getBoundingClientRect();
+						if (rect.width > 0 && rect.height > 0 && isOverlayCandidate(el, style, rect)) {
+							overlayCount += 1;
+						}
+					}
+					if (el.getAttribute && (el.getAttribute('oncontextmenu') || el.getAttribute('onselectstart') || el.getAttribute('onmousedown') || el.getAttribute('oncopy'))) {
+						inlineHandlerCount += 1;
+					}
+				}
+
+				return {
+					isTopFrame: window === window.top,
+					frameUrl: location.href,
+					iframeCount: document.querySelectorAll('iframe').length,
+					shadowCount: shadowCount,
+					blockedStyleCount: blockedStyleCount,
+					inlineHandlerCount: inlineHandlerCount,
+					overlayCount: overlayCount,
+					contextMenuBlocked: probeContextMenuBlocked()
+				};
+			}
+		}, function(results) {
+			if (!results || !results.length) {
+				return;
+			}
+			var frameCount = results.length;
+			var iframeCount = 0;
+			var shadowCount = 0;
+			var blockedStyleCount = 0;
+			var inlineHandlerCount = 0;
+			var overlayCount = 0;
+			var contextMenuBlocked = false;
+			results.forEach(function(result) {
+				if (!result || !result.result) {
+					return;
+				}
+				var data = result.result;
+				if (data.isTopFrame) {
+					iframeCount = data.iframeCount;
+				}
+				shadowCount += data.shadowCount || 0;
+				blockedStyleCount += data.blockedStyleCount || 0;
+				inlineHandlerCount += data.inlineHandlerCount || 0;
+				overlayCount += data.overlayCount || 0;
+				if (data.contextMenuBlocked) {
+					contextMenuBlocked = true;
+				}
+			});
+			var blockedFrames = Math.max(0, iframeCount - (frameCount - 1));
+			var score = 100;
+			score -= Math.min(20, (frameCount - 1) * 4);
+			score -= Math.min(15, Math.floor(blockedStyleCount / 5));
+			score -= Math.min(10, Math.floor(inlineHandlerCount / 5));
+			score -= Math.min(15, overlayCount * 3);
+			score -= Math.min(10, shadowCount * 2);
+			if (contextMenuBlocked) {
+				score -= 10;
+			}
+			if (score < 0) {
+				score = 0;
+			}
+			var lastError = sessionData.errors && sessionData.errors[tab.id] ? sessionData.errors[tab.id] : null;
+			var report = {
+				score: score,
+				url: tab.url,
+				frameCount: frameCount,
+				iframeCount: iframeCount,
+				blockedFrames: blockedFrames,
+				shadowCount: shadowCount,
+				blockedStyleCount: blockedStyleCount,
+				inlineHandlerCount: inlineHandlerCount,
+				overlayCount: overlayCount,
+				contextMenuBlocked: contextMenuBlocked,
+				lastError: lastError ? lastError.message : '',
+				hint: lastError ? lastError.hint : ''
+			};
+			chrome.storage.local.set({ diagnostics_report: report }, function() {
+				chrome.runtime.sendMessage({ text: 'diagnostics-result', report: report });
+			});
+		});
+	}
+
 	function shouldAutoDisableSession(tabId, changeInfo, sessionData) {
 		if (!session_Prefs.disableOnNavigate && !session_Prefs.disableOnReload) {
 			return false;
@@ -1206,6 +1348,10 @@
 					}
 					if (text === 'schedule-refresh') {
 						handleScheduleCheck();
+						return;
+					}
+					if (text === 'diagnostics-run') {
+						runDiagnostics(tab, sessionData);
 						return;
 					}
 					if (text === 'rule-builder') {

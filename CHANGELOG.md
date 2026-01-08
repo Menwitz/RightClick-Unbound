@@ -20,3 +20,4 @@
 - Snippet Vault with tags, search, and quick copy.
 - Domain tools to apply modes across all open tabs.
 - Auto-enable schedules with daily windows and durations.
+- Self-test diagnostics with score, frame map, and failure hints.

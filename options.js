@@ -14,6 +14,7 @@
 		initVault();
 		initDomainTools();
 		initSchedules();
+		initDiagnostics();
 	}
 
 	function loadUserList() {
@@ -196,6 +197,18 @@
 		}
 		bindScheduleForm();
 		loadSchedules();
+	}
+
+	function initDiagnostics() {
+		var runButton = document.querySelector('#diagnostics-run');
+		if (!runButton) {
+			return;
+		}
+		runButton.addEventListener('click', function() {
+			setDiagnosticsOutput('Running diagnostics...');
+			chrome.runtime.sendMessage({ text: 'diagnostics-run' });
+		});
+		loadDiagnostics();
 	}
 
 	function handleDomainAction(value, mode, enabled) {
@@ -502,6 +515,40 @@
 
 	function isTimeValue(value) {
 		return /^([01]\d|2[0-3]):([0-5]\d)$/.test(value);
+	}
+
+	function loadDiagnostics() {
+		chrome.storage.local.get('diagnostics_report', function(value) {
+			if (value.diagnostics_report) {
+				renderDiagnostics(value.diagnostics_report);
+			}
+		});
+	}
+
+	function renderDiagnostics(report) {
+		var lines = [];
+		lines.push('Compatibility score: ' + report.score + '/100');
+		lines.push('URL: ' + (report.url || 'Unknown'));
+		lines.push('Frames: ' + report.frameCount + ' (accessible), iframes: ' + report.iframeCount + ', blocked: ' + report.blockedFrames);
+		lines.push('Shadow roots: ' + report.shadowCount);
+		lines.push('Selection blockers (sample): ' + report.blockedStyleCount);
+		lines.push('Inline handlers (sample): ' + report.inlineHandlerCount);
+		lines.push('Overlay candidates (sample): ' + report.overlayCount);
+		lines.push('Context menu blocked: ' + (report.contextMenuBlocked ? 'Yes' : 'No'));
+		if (report.lastError) {
+			lines.push('Last error: ' + report.lastError);
+		}
+		if (report.hint) {
+			lines.push('Hint: ' + report.hint);
+		}
+		setDiagnosticsOutput(lines.join('\n'));
+	}
+
+	function setDiagnosticsOutput(text) {
+		var output = document.querySelector('#diagnostics-output');
+		if (output) {
+			output.textContent = text || '';
+		}
 	}
 
 	function normalizeRules(rules) {
@@ -1160,5 +1207,12 @@
 	}
 
 	window.onload = callback;
+
+	chrome.runtime.onMessage.addListener(function(request) {
+		if (request.text === 'diagnostics-result' && request.report) {
+			renderDiagnostics(request.report);
+			chrome.storage.local.set({ diagnostics_report: request.report });
+		}
+	});
 
 })();
