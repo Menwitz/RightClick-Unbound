@@ -61,6 +61,29 @@
 			</ul>
 		</div>
 		<div class="section">
+			<div class="section-title">Session Controls:</div>
+			<div class="session-controls">
+				<label class="session-toggle">
+					<input id="session-default" type="checkbox">
+					<span>Session only by default</span>
+				</label>
+				<label class="session-toggle">
+					<input id="session-disable-reload" type="checkbox">
+					<span>Auto-disable on reload</span>
+				</label>
+				<label class="session-toggle">
+					<input id="session-disable-navigate" type="checkbox">
+					<span>Auto-disable on navigation</span>
+				</label>
+				<label class="session-timeout">
+					<span>Auto-disable after</span>
+					<input id="session-timeout" type="number" min="0" step="1" placeholder="0">
+					<span>minutes of inactivity (0 = off)</span>
+				</label>
+			</div>
+			<div id="session-status" class="session-status" aria-live="polite"></div>
+		</div>
+		<div class="section">
 			<div class="section-title">Advanced Rules:</div>
 			<div class="rules-intro">Apply custom CSS or JS when a site is enabled.</div>
 			<div class="rules-form">

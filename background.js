@@ -3,16 +3,23 @@
 	var websites_List = [];
 	var websites_Meta = {};
 	var custom_Rules = {};
+	var session_Prefs = {
+		defaultEnabled: false,
+		autoDisableMinutes: 0,
+		disableOnNavigate: false,
+		disableOnReload: false
+	};
 	var hostname;
 
 	function loadWebsites(callback) {
-		chrome.storage.local.get(['websites_List', 'websites_Meta', 'custom_rules'], function(value) {
+		chrome.storage.local.get(['websites_List', 'websites_Meta', 'custom_rules', 'session_prefs'], function(value) {
 			var rawList = Array.isArray(value.websites_List) ? value.websites_List : [];
 			var normalized = normalizeWebsitesList(rawList);
 			var metaInfo = normalizeWebsitesMeta(value.websites_Meta, normalized);
 			websites_List = normalized;
 			websites_Meta = metaInfo.meta;
 			custom_Rules = normalizeCustomRules(value.custom_rules);
+			session_Prefs = normalizeSessionPrefs(value.session_prefs);
 			if (rawList.length !== normalized.length || metaInfo.changed) {
 				saveData();
 			}
@@ -93,6 +100,26 @@
 		return normalized;
 	}
 
+	function normalizeSessionPrefs(prefs) {
+		var normalized = {
+			defaultEnabled: false,
+			autoDisableMinutes: 0,
+			disableOnNavigate: false,
+			disableOnReload: false
+		};
+		if (!prefs || typeof prefs !== 'object') {
+			return normalized;
+		}
+		normalized.defaultEnabled = !!prefs.defaultEnabled;
+		normalized.disableOnNavigate = !!prefs.disableOnNavigate;
+		normalized.disableOnReload = !!prefs.disableOnReload;
+		var minutes = parseInt(prefs.autoDisableMinutes, 10);
+		if (!isNaN(minutes) && isFinite(minutes)) {
+			normalized.autoDisableMinutes = Math.max(0, minutes);
+		}
+		return normalized;
+	}
+
 	function removeEntry(entry) {
 		var before = websites_List.length;
 		websites_List = websites_List.filter(function(item) {
@@ -111,14 +138,16 @@
 	}
 
 	function loadSessionData(callback) {
-		chrome.storage.session.get(['session_entries', 'session_scope', 'session_errors'], function(value) {
+		chrome.storage.session.get(['session_entries', 'session_scope', 'session_errors', 'session_activity'], function(value) {
 			var entries = normalizeSessionEntries(value.session_entries);
 			var scope = normalizeSessionScope(value.session_scope);
 			var errors = normalizeSessionErrors(value.session_errors);
+			var activity = normalizeSessionActivity(value.session_activity);
 			callback({
 				entries: entries,
 				scope: scope,
-				errors: errors
+				errors: errors,
+				activity: activity
 			});
 		});
 	}
@@ -126,7 +155,8 @@
 	function saveSessionData(sessionData, callback) {
 		chrome.storage.session.set({
 			session_entries: sessionData.entries,
-			session_scope: sessionData.scope
+			session_scope: sessionData.scope,
+			session_activity: sessionData.activity
 		}, function() {
 			if (callback) {
 				callback();
@@ -163,6 +193,23 @@
 			return {};
 		}
 		return errors;
+	}
+
+	function normalizeSessionActivity(activity) {
+		var normalized = {};
+		if (!activity || typeof activity !== 'object') {
+			return normalized;
+		}
+		for (var key in activity) {
+			if (!Object.prototype.hasOwnProperty.call(activity, key)) {
+				continue;
+			}
+			var value = activity[key];
+			if (typeof value === 'number' && isFinite(value)) {
+				normalized[key] = value;
+			}
+		}
+		return normalized;
 	}
 
 	function hasSessionEntry(entries, tabId, host, mode) {
@@ -233,6 +280,9 @@
 		sessionData.scope = sessionData.scope.filter(function(entry) {
 			return entry.tabId !== tabId;
 		});
+		if (sessionData.activity) {
+			delete sessionData.activity[String(tabId)];
+		}
 	}
 
 	function getEffectiveState(tabId, host, sessionData) {
@@ -249,6 +299,33 @@
 			c: websites_List.indexOf(host + '#c') !== -1,
 			a: websites_List.indexOf(host + '#a') !== -1
 		};
+	}
+
+	function hasSessionForTab(sessionData, tabId) {
+		var entryMatch = sessionData.entries.some(function(entry) {
+			return entry.tabId === tabId;
+		});
+		if (entryMatch) {
+			return true;
+		}
+		return sessionData.scope.some(function(entry) {
+			return entry.tabId === tabId && entry.enabled;
+		});
+	}
+
+	function shouldTrackSessionActivity() {
+		return session_Prefs.autoDisableMinutes > 0;
+	}
+
+	function touchSessionActivity(sessionData, tabId) {
+		if (!shouldTrackSessionActivity()) {
+			return false;
+		}
+		if (!sessionData.activity) {
+			sessionData.activity = {};
+		}
+		sessionData.activity[String(tabId)] = Date.now();
+		return true;
 	}
 
 	function recordInjectionError(tabId, tabUrl, message) {
@@ -313,6 +390,22 @@
 		});
 	}
 
+	function shouldAutoDisableSession(tabId, changeInfo, sessionData) {
+		if (!session_Prefs.disableOnNavigate && !session_Prefs.disableOnReload) {
+			return false;
+		}
+		if (!hasSessionForTab(sessionData, tabId)) {
+			return false;
+		}
+		if (session_Prefs.disableOnNavigate && changeInfo.url) {
+			return true;
+		}
+		if (session_Prefs.disableOnReload && changeInfo.status === 'loading' && !changeInfo.url) {
+			return true;
+		}
+		return false;
+	}
+
 	function handleSessionToggle(tab, host, sessionData, enabled) {
 		enabled = !!enabled;
 		var changed = false;
@@ -324,6 +417,7 @@
 			if (websites_List.indexOf(host + '#a') !== -1) {
 				changed = setSessionEntry(sessionData.entries, tab.id, host, 'a', true) || changed;
 			}
+			changed = touchSessionActivity(sessionData, tab.id) || changed;
 			if (changed) {
 				saveSessionData(sessionData);
 			}
@@ -333,6 +427,10 @@
 		changed = setSessionScope(sessionData.scope, tab.id, host, false) || changed;
 		changed = setSessionEntry(sessionData.entries, tab.id, host, 'c', false) || changed;
 		changed = setSessionEntry(sessionData.entries, tab.id, host, 'a', false) || changed;
+		if (sessionData.activity && sessionData.activity[String(tab.id)]) {
+			delete sessionData.activity[String(tab.id)];
+			changed = true;
+		}
 		if (changed) {
 			saveSessionData(sessionData);
 		}
@@ -481,12 +579,63 @@
 		});
 	}
 
+	var sessionAlarmName = 'rcu-session-expiry';
+
+	function setupSessionAlarm() {
+		if (!chrome.alarms) {
+			return;
+		}
+		chrome.alarms.create(sessionAlarmName, { periodInMinutes: 1 });
+	}
+
+	function handleSessionExpiry() {
+		loadWebsites(function() {
+			if (!shouldTrackSessionActivity()) {
+				return;
+			}
+			var expiryMs = session_Prefs.autoDisableMinutes * 60 * 1000;
+			if (!expiryMs) {
+				return;
+			}
+			loadSessionData(function(sessionData) {
+				var now = Date.now();
+				var expiredTabs = [];
+				for (var tabId in sessionData.activity) {
+					if (!Object.prototype.hasOwnProperty.call(sessionData.activity, tabId)) {
+						continue;
+					}
+					var lastActive = sessionData.activity[tabId];
+					if (now - lastActive >= expiryMs) {
+						expiredTabs.push(parseInt(tabId, 10));
+					}
+				}
+				if (!expiredTabs.length) {
+					return;
+				}
+				expiredTabs.forEach(function(tabId) {
+					clearSessionForTab(sessionData, tabId);
+					clearInjectionError(tabId);
+				});
+				saveSessionData(sessionData);
+				chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+					var tab = tabs[0];
+					if (tab && expiredTabs.indexOf(tab.id) !== -1 && isHttpUrl(tab.url)) {
+						var host = (new URL(tab.url)).hostname;
+						sendState(tab, host, sessionData);
+					}
+				});
+			});
+		});
+	}
+
 	chrome.runtime.onInstalled.addListener(function() {
 		setupContextMenus();
+		setupSessionAlarm();
 	});
 
 	chrome.runtime.onStartup.addListener(function() {
 		setupContextMenus();
+		setupSessionAlarm();
 	});
 
 	chrome.runtime.onMessage.addListener(function(request, sender) {
@@ -568,6 +717,12 @@
 		});
 	});
 
+	chrome.alarms.onAlarm.addListener(function(alarm) {
+		if (alarm && alarm.name === sessionAlarmName) {
+			handleSessionExpiry();
+		}
+	});
+
 	chrome.commands.onCommand.addListener(function(command) {
 		chrome.tabs.query({ currentWindow: true, active: true }, function(tabs) {
 			var tab = tabs[0];
@@ -603,13 +758,37 @@
 	});
 
 	chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
-		if (changeInfo.status === 'complete' && tab && isHttpUrl(tab.url)) {
-			loadWebsites(function() {
-				loadSessionData(function(sessionData) {
-					getHostName(tab.url, tabId, sessionData);
-				});
-			});
+		if (!tab) {
+			return;
 		}
+		loadWebsites(function() {
+			loadSessionData(function(sessionData) {
+				if (shouldAutoDisableSession(tabId, changeInfo, sessionData)) {
+					clearSessionForTab(sessionData, tabId);
+					saveSessionData(sessionData);
+					clearInjectionError(tabId);
+					if (isHttpUrl(tab.url)) {
+						var host = (new URL(tab.url)).hostname;
+						sendState(tab, host, sessionData);
+					}
+				}
+				if (changeInfo.status === 'complete' && isHttpUrl(tab.url)) {
+					getHostName(tab.url, tabId, sessionData);
+				}
+			});
+		});
+	});
+
+	chrome.tabs.onActivated.addListener(function(activeInfo) {
+		loadWebsites(function() {
+			loadSessionData(function(sessionData) {
+				if (hasSessionForTab(sessionData, activeInfo.tabId)) {
+					if (touchSessionActivity(sessionData, activeInfo.tabId)) {
+						saveSessionData(sessionData);
+					}
+				}
+			});
+		});
 	});
 
 	chrome.tabs.onRemoved.addListener(function(tabId) {
@@ -627,10 +806,16 @@
 
 	function enableCopy(url, text, tab, sessionData) {
 		var sessionEnabled = isSessionScoped(sessionData.scope, tab.id, url);
+		if ((text === 'c-true' || text === 'a-true') && session_Prefs.defaultEnabled && !sessionEnabled) {
+			handleSessionToggle(tab, url, sessionData, true);
+			sessionEnabled = true;
+		}
 		if (text === 'c-true') {
 			var copyEntry = url + '#c';
 			if (sessionEnabled) {
-				if (setSessionEntry(sessionData.entries, tab.id, url, 'c', true)) {
+				var changed = setSessionEntry(sessionData.entries, tab.id, url, 'c', true);
+				changed = touchSessionActivity(sessionData, tab.id) || changed;
+				if (changed) {
 					saveSessionData(sessionData);
 				}
 			} else {
@@ -656,7 +841,9 @@
 		if (text === 'a-true') {
 			var absEntry = url + '#a';
 			if (sessionEnabled) {
-				if (setSessionEntry(sessionData.entries, tab.id, url, 'a', true)) {
+				var changedAbs = setSessionEntry(sessionData.entries, tab.id, url, 'a', true);
+				changedAbs = touchSessionActivity(sessionData, tab.id) || changedAbs;
+				if (changedAbs) {
 					saveSessionData(sessionData);
 				}
 			} else {

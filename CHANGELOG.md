@@ -10,3 +10,4 @@
 - Session-only toggle, injection failure hints, and custom CSS/JS rules.
 - Quick profiles, settings export/import, and keyboard hotkeys.
 - Context menu controls and a quick on-page panel.
+- Session defaults, auto-disable rules, and inactivity timeout controls.

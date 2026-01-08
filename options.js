@@ -6,6 +6,7 @@
 		loadUserList();
 		initRules();
 		initBackup();
+		initSessionPrefs();
 	}
 
 	function loadUserList() {
@@ -117,6 +118,29 @@
 		}
 	}
 
+	function initSessionPrefs() {
+		if (!document.querySelector('#session-default')) {
+			return;
+		}
+		loadSessionPrefs();
+		var defaultToggle = document.querySelector('#session-default');
+		var reloadToggle = document.querySelector('#session-disable-reload');
+		var navigateToggle = document.querySelector('#session-disable-navigate');
+		var timeoutInput = document.querySelector('#session-timeout');
+		if (defaultToggle) {
+			defaultToggle.addEventListener('change', saveSessionPrefs);
+		}
+		if (reloadToggle) {
+			reloadToggle.addEventListener('change', saveSessionPrefs);
+		}
+		if (navigateToggle) {
+			navigateToggle.addEventListener('change', saveSessionPrefs);
+		}
+		if (timeoutInput) {
+			timeoutInput.addEventListener('change', saveSessionPrefs);
+		}
+	}
+
 	function bindRuleForm() {
 		var saveButton = document.querySelector('#rule-save');
 		var clearButton = document.querySelector('#rule-clear');
@@ -161,6 +185,73 @@
 		return normalized;
 	}
 
+	function normalizeSessionPrefs(prefs) {
+		var normalized = {
+			defaultEnabled: false,
+			autoDisableMinutes: 0,
+			disableOnNavigate: false,
+			disableOnReload: false
+		};
+		if (!prefs || typeof prefs !== 'object') {
+			return normalized;
+		}
+		normalized.defaultEnabled = !!prefs.defaultEnabled;
+		normalized.disableOnNavigate = !!prefs.disableOnNavigate;
+		normalized.disableOnReload = !!prefs.disableOnReload;
+		var minutes = parseInt(prefs.autoDisableMinutes, 10);
+		if (!isNaN(minutes) && isFinite(minutes)) {
+			normalized.autoDisableMinutes = Math.max(0, minutes);
+		}
+		return normalized;
+	}
+
+	function loadSessionPrefs() {
+		chrome.storage.local.get('session_prefs', function(value) {
+			var prefs = normalizeSessionPrefs(value.session_prefs);
+			updateSessionPrefsUI(prefs);
+		});
+	}
+
+	function updateSessionPrefsUI(prefs) {
+		var defaultToggle = document.querySelector('#session-default');
+		var reloadToggle = document.querySelector('#session-disable-reload');
+		var navigateToggle = document.querySelector('#session-disable-navigate');
+		var timeoutInput = document.querySelector('#session-timeout');
+		if (defaultToggle) {
+			defaultToggle.checked = !!prefs.defaultEnabled;
+		}
+		if (reloadToggle) {
+			reloadToggle.checked = !!prefs.disableOnReload;
+		}
+		if (navigateToggle) {
+			navigateToggle.checked = !!prefs.disableOnNavigate;
+		}
+		if (timeoutInput) {
+			timeoutInput.value = prefs.autoDisableMinutes ? String(prefs.autoDisableMinutes) : '';
+		}
+	}
+
+	function saveSessionPrefs() {
+		var prefs = collectSessionPrefs();
+		chrome.storage.local.set({ session_prefs: prefs }, function() {
+			setSessionStatus('Session settings saved.');
+		});
+	}
+
+	function collectSessionPrefs() {
+		var defaultToggle = document.querySelector('#session-default');
+		var reloadToggle = document.querySelector('#session-disable-reload');
+		var navigateToggle = document.querySelector('#session-disable-navigate');
+		var timeoutInput = document.querySelector('#session-timeout');
+		var rawMinutes = timeoutInput ? parseInt(timeoutInput.value, 10) : 0;
+		return normalizeSessionPrefs({
+			defaultEnabled: defaultToggle ? defaultToggle.checked : false,
+			disableOnReload: reloadToggle ? reloadToggle.checked : false,
+			disableOnNavigate: navigateToggle ? navigateToggle.checked : false,
+			autoDisableMinutes: isNaN(rawMinutes) ? 0 : rawMinutes
+		});
+	}
+
 	function exportSettings() {
 		buildExportText(function() {
 			setBackupStatus('Export ready.');
@@ -196,13 +287,14 @@
 
 	function buildExportText(callback) {
 		var exportField = document.querySelector('#export-json');
-		chrome.storage.local.get(['websites_List', 'websites_Meta', 'custom_rules'], function(value) {
+		chrome.storage.local.get(['websites_List', 'websites_Meta', 'custom_rules', 'session_prefs'], function(value) {
 			var payload = {
 				version: 1,
 				exportedAt: new Date().toISOString(),
 				websites_List: Array.isArray(value.websites_List) ? value.websites_List : [],
 				websites_Meta: value.websites_Meta && typeof value.websites_Meta === 'object' ? value.websites_Meta : {},
-				custom_rules: normalizeRules(value.custom_rules)
+				custom_rules: normalizeRules(value.custom_rules),
+				session_prefs: normalizeSessionPrefs(value.session_prefs)
 			};
 			var text = JSON.stringify(payload, null, 2);
 			if (exportField) {
@@ -278,20 +370,23 @@
 			return;
 		}
 		var source = data && data.websites_List !== undefined ? data : (data && data.settings ? data.settings : null);
-		if (!source || (source.websites_List === undefined && source.websites_Meta === undefined && source.custom_rules === undefined)) {
+		if (!source || (source.websites_List === undefined && source.websites_Meta === undefined && source.custom_rules === undefined && source.session_prefs === undefined)) {
 			setBackupStatus('Missing settings payload.', true);
 			return;
 		}
 		var list = normalizeWebsitesList(source.websites_List);
 		var meta = normalizeWebsitesMeta(source.websites_Meta, list);
 		var rules = normalizeRules(source.custom_rules);
+		var prefs = normalizeSessionPrefs(source.session_prefs);
 		chrome.storage.local.set({
 			websites_List: list,
 			websites_Meta: meta,
-			custom_rules: rules
+			custom_rules: rules,
+			session_prefs: prefs
 		}, function() {
 			loadUserList();
 			loadRules();
+			updateSessionPrefsUI(prefs);
 			setBackupStatus('Settings imported.');
 		});
 	}
@@ -505,6 +600,19 @@
 
 	function setBackupStatus(message, isError) {
 		var status = document.querySelector('#backup-status');
+		if (!status) {
+			return;
+		}
+		status.textContent = message || '';
+		if (isError) {
+			status.classList.add('is-error');
+		} else {
+			status.classList.remove('is-error');
+		}
+	}
+
+	function setSessionStatus(message, isError) {
+		var status = document.querySelector('#session-status');
 		if (!status) {
 			return;
 		}

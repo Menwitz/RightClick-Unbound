@@ -132,19 +132,23 @@
 		}
 		if (action === 'unlock') {
 			chrome.runtime.sendMessage({ text: state.c ? 'c-false' : 'c-true' });
+			requestState();
 			return;
 		}
 		if (action === 'force') {
 			chrome.runtime.sendMessage({ text: state.a ? 'a-false' : 'a-true' });
+			requestState();
 			return;
 		}
 		if (action === 'session') {
 			chrome.runtime.sendMessage({ text: 'session-toggle', enabled: !state.session });
+			requestState();
 			return;
 		}
 		if (action === 'disable') {
 			chrome.runtime.sendMessage({ text: 'c-false' });
 			chrome.runtime.sendMessage({ text: 'a-false' });
+			requestState();
 		}
 	}
 
@@ -165,6 +169,10 @@
 		if (event.key === 'Escape') {
 			removePanel();
 		}
+	}
+
+	function requestState() {
+		chrome.runtime.sendMessage({ text: 'state' });
 	}
 
 	function removePanel() {
@@ -193,6 +201,6 @@
 
 	document.addEventListener('keydown', handleKeydown);
 	chrome.runtime.onMessage.addListener(handleMessage);
-	chrome.runtime.sendMessage({ text: 'state' });
+	requestState();
 
 })();
