@@ -1,0 +1,23 @@
+# RightClick Unbound
+
+Restore right-click and copy on restrictive pages with quick toggles and an optional force mode.
+
+## Usage
+- Click the extension icon to open the popup.
+- Toggle "Unlock Copy" to enable on the current site.
+- Toggle "Force Mode" for stricter sites that still block copy.
+- Reload the tab when prompted to apply changes.
+- Open Settings to manage your site list and remove entries to disable.
+
+## Permissions
+- `tabs` and `activeTab`: detect the active tab and trigger reloads when toggles change.
+- `storage`: save the user list and per-site mode choices.
+- `scripting`: inject enable scripts on pages you opt into.
+- Host permissions (`<all_urls>`): allow running on any site you choose.
+
+## Support
+Email: support@rightclickunbound.app
+
+## Store Links
+- Chrome: https://chromewebstore.google.com/detail/rightclick-unbound/jdocbkpgdakpekjlhemmfcncgdjeiika
+- Firefox: https://addons.mozilla.org/firefox/addon/rightclick-unbound/
