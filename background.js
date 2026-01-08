@@ -493,6 +493,7 @@
 		force: 'rcu-force',
 		session: 'rcu-session',
 		panel: 'rcu-panel',
+		inspect: 'rcu-inspect',
 		settings: 'rcu-settings'
 	};
 
@@ -534,6 +535,12 @@
 				contexts: ['all']
 			});
 			chrome.contextMenus.create({
+				id: menuIds.inspect,
+				parentId: menuIds.root,
+				title: 'Lock Inspector',
+				contexts: ['all']
+			});
+			chrome.contextMenus.create({
 				id: menuIds.settings,
 				parentId: menuIds.root,
 				title: 'Open Settings',
@@ -552,6 +559,7 @@
 			chrome.contextMenus.update(menuIds.force, { checked: false, enabled: false });
 			chrome.contextMenus.update(menuIds.session, { checked: false, enabled: false });
 			chrome.contextMenus.update(menuIds.panel, { enabled: false });
+			chrome.contextMenus.update(menuIds.inspect, { enabled: false });
 			chrome.contextMenus.refresh();
 			return;
 		}
@@ -562,6 +570,7 @@
 		chrome.contextMenus.update(menuIds.force, { checked: state.a, enabled: true });
 		chrome.contextMenus.update(menuIds.session, { checked: sessionEnabled, enabled: true });
 		chrome.contextMenus.update(menuIds.panel, { enabled: true });
+		chrome.contextMenus.update(menuIds.inspect, { enabled: true });
 		chrome.contextMenus.refresh();
 	}
 
@@ -569,6 +578,20 @@
 		chrome.scripting.executeScript({
 			target: { tabId: tabId },
 			files: ['js/overlay.js']
+		}, function() {
+			var checkError = chrome.runtime.lastError;
+			if (checkError) {
+				recordInjectionError(tabId, tabUrl, checkError.message);
+			} else {
+				clearInjectionError(tabId);
+			}
+		});
+	}
+
+	function showInspector(tabId, tabUrl) {
+		chrome.scripting.executeScript({
+			target: { tabId: tabId },
+			files: ['js/inspector.js']
 		}, function() {
 			var checkError = chrome.runtime.lastError;
 			if (checkError) {
@@ -663,6 +686,10 @@
 						handleSessionToggle(tab, host, sessionData, request.enabled);
 						return;
 					}
+					if (text === 'inspect-locks') {
+						showInspector(tab.id, tab.url);
+						return;
+					}
 					enableCopy(host, text, tab, sessionData);
 				});
 			});
@@ -688,6 +715,14 @@
 		if (info.menuItemId === menuIds.panel) {
 			if (isHttpUrl(tab.url)) {
 				showQuickPanel(tab.id, tab.url);
+			} else {
+				recordInjectionError(tab.id, tab.url, 'Unsupported page');
+			}
+			return;
+		}
+		if (info.menuItemId === menuIds.inspect) {
+			if (isHttpUrl(tab.url)) {
+				showInspector(tab.id, tab.url);
 			} else {
 				recordInjectionError(tab.id, tab.url, 'Unsupported page');
 			}

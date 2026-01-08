@@ -12,3 +12,4 @@
 - Context menu controls and a quick on-page panel.
 - Session defaults, auto-disable rules, and inactivity timeout controls.
 - Adaptive unlock fallback for stubborn event traps.
+- Lock inspector for pinpointing and neutralizing blockers.
