@@ -301,6 +301,62 @@ div, img {
 	animation: rowIn 260ms ease-out;
 }
 
+.profiles {
+	margin: 6px 12px 0;
+	padding: 10px 12px;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--surface-soft);
+	display: grid;
+	gap: 8px;
+	animation: rowIn 280ms ease-out;
+}
+
+.profiles-title {
+	font-size: 10px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--muted);
+}
+
+.profiles-actions {
+	display: flex;
+	gap: 6px;
+}
+
+.profile-btn {
+	flex: 1;
+	border: 1px solid var(--border);
+	background: #fff;
+	color: var(--ink-soft);
+	font-size: 11px;
+	padding: 6px 4px;
+	border-radius: 999px;
+	cursor: pointer;
+	font-family: var(--font-sans);
+	transition: border-color 140ms ease, color 140ms ease, background-color 140ms ease;
+}
+
+.profile-btn:hover {
+	border-color: #d7cfc4;
+	color: var(--ink);
+}
+
+.profile-btn:active {
+	background: #f2ebe2;
+}
+
+.profile-btn.is-active {
+	background: var(--ink);
+	border-color: var(--ink);
+	color: #fff;
+}
+
+.profile-btn:focus-visible {
+	outline: 2px solid rgba(242, 149, 89, 0.4);
+	outline-offset: 2px;
+}
+
 @keyframes popupIn {
 	from {
 		opacity: 0;

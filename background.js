@@ -411,6 +411,40 @@
 		});
 	});
 
+	chrome.commands.onCommand.addListener(function(command) {
+		chrome.tabs.query({ currentWindow: true, active: true }, function(tabs) {
+			var tab = tabs[0];
+			if (!tab || !tab.url) {
+				return;
+			}
+			if (!isHttpUrl(tab.url)) {
+				recordInjectionError(tab.id, tab.url, 'Unsupported page');
+				return;
+			}
+			loadWebsites(function() {
+				loadSessionData(function(sessionData) {
+					var host = (new URL(tab.url)).hostname;
+					if (command === 'toggle-session') {
+						var nextSession = !isSessionScoped(sessionData.scope, tab.id, host);
+						handleSessionToggle(tab, host, sessionData, nextSession);
+						return;
+					}
+					if (command === 'toggle-unlock') {
+						var state = getEffectiveState(tab.id, host, sessionData);
+						enableCopy(host, state.c ? 'c-false' : 'c-true', tab, sessionData);
+						sendState(tab, host, sessionData);
+						return;
+					}
+					if (command === 'toggle-force') {
+						var forceState = getEffectiveState(tab.id, host, sessionData);
+						enableCopy(host, forceState.a ? 'a-false' : 'a-true', tab, sessionData);
+						sendState(tab, host, sessionData);
+					}
+				});
+			});
+		});
+	});
+
 	chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
 		if (changeInfo.status === 'complete' && tab && isHttpUrl(tab.url)) {
 			loadWebsites(function() {

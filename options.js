@@ -5,10 +5,14 @@
 	function callback() {
 		loadUserList();
 		initRules();
+		initBackup();
 	}
 
 	function loadUserList() {
 		var u = document.querySelector('#user-list');
+		if (u) {
+			u.innerHTML = '';
+		}
 		chrome.storage.local.get(['websites_List', 'websites_Meta'], function(value) {
 			if (value.websites_List !== undefined) {
 				var seen = {};
@@ -87,6 +91,32 @@
 		loadRules();
 	}
 
+	function initBackup() {
+		if (!document.querySelector('#export-settings')) {
+			return;
+		}
+		var exportButton = document.querySelector('#export-settings');
+		var copyButton = document.querySelector('#copy-settings');
+		var downloadButton = document.querySelector('#download-settings');
+		var importButton = document.querySelector('#import-settings');
+		var importFile = document.querySelector('#import-file');
+		if (exportButton) {
+			exportButton.addEventListener('click', exportSettings);
+		}
+		if (copyButton) {
+			copyButton.addEventListener('click', copySettings);
+		}
+		if (downloadButton) {
+			downloadButton.addEventListener('click', downloadSettings);
+		}
+		if (importButton) {
+			importButton.addEventListener('click', importSettingsFromText);
+		}
+		if (importFile) {
+			importFile.addEventListener('change', handleImportFile);
+		}
+	}
+
 	function bindRuleForm() {
 		var saveButton = document.querySelector('#rule-save');
 		var clearButton = document.querySelector('#rule-clear');
@@ -127,6 +157,179 @@
 				js: js,
 				updatedAt: typeof rule.updatedAt === 'number' ? rule.updatedAt : Date.now()
 			};
+		}
+		return normalized;
+	}
+
+	function exportSettings() {
+		buildExportText(function() {
+			setBackupStatus('Export ready.');
+		});
+	}
+
+	function copySettings() {
+		buildExportText(function(text) {
+			copyTextToClipboard(text, function() {
+				setBackupStatus('Copied to clipboard.');
+			});
+		});
+	}
+
+	function downloadSettings() {
+		buildExportText(function(text) {
+			if (!text) {
+				setBackupStatus('Nothing to download.', true);
+				return;
+			}
+			var blob = new Blob([text], { type: 'application/json' });
+			var url = URL.createObjectURL(blob);
+			var link = document.createElement('a');
+			link.href = url;
+			link.download = 'rightclick-unbound-settings.json';
+			document.body.appendChild(link);
+			link.click();
+			link.remove();
+			URL.revokeObjectURL(url);
+			setBackupStatus('Download started.');
+		});
+	}
+
+	function buildExportText(callback) {
+		var exportField = document.querySelector('#export-json');
+		chrome.storage.local.get(['websites_List', 'websites_Meta', 'custom_rules'], function(value) {
+			var payload = {
+				version: 1,
+				exportedAt: new Date().toISOString(),
+				websites_List: Array.isArray(value.websites_List) ? value.websites_List : [],
+				websites_Meta: value.websites_Meta && typeof value.websites_Meta === 'object' ? value.websites_Meta : {},
+				custom_rules: normalizeRules(value.custom_rules)
+			};
+			var text = JSON.stringify(payload, null, 2);
+			if (exportField) {
+				exportField.value = text;
+			}
+			if (callback) {
+				callback(text);
+			}
+		});
+	}
+
+	function copyTextToClipboard(text, callback) {
+		if (navigator.clipboard && navigator.clipboard.writeText) {
+			navigator.clipboard.writeText(text).then(function() {
+				if (callback) {
+					callback();
+				}
+			}).catch(function() {
+				fallbackCopy(text, callback);
+			});
+			return;
+		}
+		fallbackCopy(text, callback);
+	}
+
+	function fallbackCopy(text, callback) {
+		var exportField = document.querySelector('#export-json');
+		if (!exportField) {
+			return;
+		}
+		exportField.focus();
+		exportField.select();
+		document.execCommand('copy');
+		if (callback) {
+			callback();
+		}
+	}
+
+	function handleImportFile(event) {
+		var file = event.target.files && event.target.files[0] ? event.target.files[0] : null;
+		if (!file) {
+			return;
+		}
+		var reader = new FileReader();
+		reader.onload = function(loadEvent) {
+			var text = loadEvent.target.result || '';
+			var importField = document.querySelector('#import-json');
+			if (importField) {
+				importField.value = text;
+			}
+			applyImport(text);
+		};
+		reader.readAsText(file);
+		event.target.value = '';
+	}
+
+	function importSettingsFromText() {
+		var importField = document.querySelector('#import-json');
+		var text = importField ? importField.value.trim() : '';
+		if (!text) {
+			setBackupStatus('Paste JSON to import.', true);
+			return;
+		}
+		applyImport(text);
+	}
+
+	function applyImport(text) {
+		var data;
+		try {
+			data = JSON.parse(text);
+		} catch (error) {
+			setBackupStatus('Invalid JSON.', true);
+			return;
+		}
+		var source = data && data.websites_List !== undefined ? data : (data && data.settings ? data.settings : null);
+		if (!source || (source.websites_List === undefined && source.websites_Meta === undefined && source.custom_rules === undefined)) {
+			setBackupStatus('Missing settings payload.', true);
+			return;
+		}
+		var list = normalizeWebsitesList(source.websites_List);
+		var meta = normalizeWebsitesMeta(source.websites_Meta, list);
+		var rules = normalizeRules(source.custom_rules);
+		chrome.storage.local.set({
+			websites_List: list,
+			websites_Meta: meta,
+			custom_rules: rules
+		}, function() {
+			loadUserList();
+			loadRules();
+			setBackupStatus('Settings imported.');
+		});
+	}
+
+	function normalizeWebsitesList(list) {
+		var normalized = [];
+		var seen = {};
+		if (!Array.isArray(list)) {
+			return normalized;
+		}
+		for (var i = 0; i < list.length; i++) {
+			var entry = list[i];
+			if (typeof entry !== 'string') {
+				continue;
+			}
+			if (!/#[ac]$/.test(entry)) {
+				continue;
+			}
+			if (seen[entry]) {
+				continue;
+			}
+			seen[entry] = true;
+			normalized.push(entry);
+		}
+		return normalized;
+	}
+
+	function normalizeWebsitesMeta(meta, list) {
+		var normalized = {};
+		if (!meta || typeof meta !== 'object') {
+			return normalized;
+		}
+		for (var i = 0; i < list.length; i++) {
+			var entry = list[i];
+			var stamp = meta[entry];
+			if (typeof stamp === 'number' && isFinite(stamp)) {
+				normalized[entry] = stamp;
+			}
 		}
 		return normalized;
 	}
@@ -297,6 +500,19 @@
 		var errorEl = document.querySelector('#rule-error');
 		if (errorEl) {
 			errorEl.textContent = message || '';
+		}
+	}
+
+	function setBackupStatus(message, isError) {
+		var status = document.querySelector('#backup-status');
+		if (!status) {
+			return;
+		}
+		status.textContent = message || '';
+		if (isError) {
+			status.classList.add('is-error');
+		} else {
+			status.classList.remove('is-error');
 		}
 	}
 

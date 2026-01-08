@@ -11,6 +11,7 @@
 	var sessionEl = document.querySelector('.session-mode');
 	var failureEl = document.querySelector('.failure');
 	var failureText = document.querySelector('.failure-text');
+	var profileButtons = document.querySelectorAll('.profile-btn');
 
 	chrome.runtime.sendMessage({
 		text: 'state'
@@ -55,6 +56,14 @@
 		};
 	}
 
+	if (profileButtons.length) {
+		profileButtons.forEach(function(button) {
+			button.addEventListener('click', function() {
+				applyProfile(button.getAttribute('data-profile'));
+			});
+		});
+	}
+
 	document.querySelector('.reload').onclick = function () {
 		chrome.tabs.reload();
 		window.close();
@@ -79,6 +88,10 @@
 			document.querySelector('.abs-mode').remove();
 			if (sessionEl) {
 				sessionEl.remove();
+			}
+			var profiles = document.querySelector('.profiles');
+			if (profiles) {
+				profiles.remove();
 			}
 			document.querySelector('.description').remove();
 			stateEl.classList.add('state--blocked');
@@ -167,6 +180,7 @@
 			stateValue.textContent = 'Enabled';
 			stateEl.classList.add('is-enabled');
 		}
+		updateProfileUI();
 	}
 
 	function updateSessionUI() {
@@ -191,6 +205,86 @@
 
 	function reload() {
 		document.querySelector('.reload').style.display = 'flex';
+	}
+
+	function applyProfile(profile) {
+		if (isBlocked || !profile) {
+			return;
+		}
+		var targets = getProfileTargets(profile);
+		if (!targets) {
+			return;
+		}
+		var reloadNeeded = false;
+		reloadNeeded = updateToggleState('c', targets.c) || reloadNeeded;
+		reloadNeeded = updateToggleState('a', targets.a) || reloadNeeded;
+		if (reloadNeeded) {
+			r = true;
+		}
+		state(r);
+		updateFailure(null);
+		chrome.runtime.sendMessage({
+			text: 'state'
+		});
+	}
+
+	function updateToggleState(mode, enabled) {
+		if (mode === 'c') {
+			if (c === enabled) {
+				return false;
+			}
+			c = enabled;
+			chrome.runtime.sendMessage({
+				text: enabled ? 'c-true' : 'c-false'
+			});
+			return !enabled;
+		}
+		if (mode === 'a') {
+			if (a === enabled) {
+				return false;
+			}
+			a = enabled;
+			chrome.runtime.sendMessage({
+				text: enabled ? 'a-true' : 'a-false'
+			});
+			return !enabled;
+		}
+		return false;
+	}
+
+	function getProfileTargets(profile) {
+		if (profile === 'light') {
+			return { c: true, a: false };
+		}
+		if (profile === 'force') {
+			return { c: false, a: true };
+		}
+		if (profile === 'dual') {
+			return { c: true, a: true };
+		}
+		return null;
+	}
+
+	function updateProfileUI() {
+		if (!profileButtons.length) {
+			return;
+		}
+		var active = null;
+		if (c && a) {
+			active = 'dual';
+		} else if (c) {
+			active = 'light';
+		} else if (a) {
+			active = 'force';
+		}
+		profileButtons.forEach(function(button) {
+			var profile = button.getAttribute('data-profile');
+			if (profile === active) {
+				button.classList.add('is-active');
+			} else {
+				button.classList.remove('is-active');
+			}
+		});
 	}
 
 })();

@@ -2,6 +2,26 @@
    "background": {
       "service_worker": "background.js"
    },
+   "commands": {
+      "toggle-unlock": {
+         "suggested_key": {
+            "default": "Alt+Shift+U"
+         },
+         "description": "Toggle Unlock Copy on the current site"
+      },
+      "toggle-force": {
+         "suggested_key": {
+            "default": "Alt+Shift+F"
+         },
+         "description": "Toggle Force Mode on the current site"
+      },
+      "toggle-session": {
+         "suggested_key": {
+            "default": "Alt+Shift+S"
+         },
+         "description": "Toggle Session Only for the current tab"
+      }
+   },
    "action": {
       "default_icon": {
          "16": "images/16px.png",

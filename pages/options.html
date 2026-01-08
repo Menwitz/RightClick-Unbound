@@ -80,6 +80,23 @@
 			<div id="rules-list" class="rules-list"></div>
 		</div>
 		<div class="section">
+			<div class="section-title">Backup &amp; Transfer:</div>
+			<div class="backup-hint">Export or import your site list and custom rules.</div>
+			<div class="backup-actions">
+				<button id="export-settings" type="button">Export</button>
+				<button id="copy-settings" type="button">Copy</button>
+				<button id="download-settings" type="button">Download</button>
+			</div>
+			<textarea id="export-json" class="backup-text" rows="5" readonly placeholder="Click Export to generate JSON."></textarea>
+			<div class="backup-subtitle">Import JSON (replaces current settings).</div>
+			<textarea id="import-json" class="backup-text" rows="5" placeholder="Paste settings JSON here"></textarea>
+			<div class="backup-actions">
+				<button id="import-settings" type="button">Import</button>
+				<label class="file-button">Import File<input id="import-file" type="file" accept="application/json"></label>
+			</div>
+			<div id="backup-status" class="backup-status" aria-live="polite"></div>
+		</div>
+		<div class="section">
 			<div class="section-title">Limitations:</div>
 			<ul class="section-list">
 				<li>Some sites cannot be unlocked due to strict security policies.</li>

@@ -386,6 +386,107 @@ a:hover {
 	box-shadow: none;
 }
 
+.backup-hint {
+	font-size: 12px;
+	color: var(--ink-soft);
+}
+
+.backup-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 4px;
+}
+
+.backup-actions button,
+.file-button {
+	background: var(--ink);
+	color: #fff;
+	border: 1px solid transparent;
+	border-radius: 8px;
+	padding: 8px 12px;
+	font-size: 12px;
+	cursor: pointer;
+	font-weight: 600;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.backup-actions button:hover,
+.file-button:hover {
+	transform: translateY(-1px);
+	box-shadow: var(--shadow-soft);
+}
+
+.backup-actions button:active,
+.file-button:active {
+	transform: translateY(0);
+	box-shadow: none;
+}
+
+.backup-actions #copy-settings,
+.backup-actions #download-settings {
+	background: transparent;
+	color: var(--ink-soft);
+	border: 1px solid var(--border);
+}
+
+.backup-actions #import-settings {
+	background: var(--ink);
+}
+
+.backup-text {
+	width: 100%;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	padding: 8px 10px;
+	font-size: 11px;
+	font-family: "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+	background: #fff;
+	box-sizing: border-box;
+	margin-top: 8px;
+	min-height: 96px;
+}
+
+.backup-text:focus {
+	border-color: #d9cbbf;
+	box-shadow: 0 0 0 3px rgba(242, 149, 89, 0.15);
+	outline: none;
+}
+
+.backup-subtitle {
+	margin-top: 10px;
+	font-size: 10px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--muted);
+}
+
+.file-button {
+	position: relative;
+	overflow: hidden;
+}
+
+.file-button input {
+	position: absolute;
+	inset: 0;
+	opacity: 0;
+	cursor: pointer;
+}
+
+.backup-status {
+	min-height: 14px;
+	font-size: 11px;
+	color: var(--muted);
+	margin-top: 6px;
+}
+
+.backup-status.is-error {
+	color: #b04a2f;
+}
+
 .rules-hint {
 	font-size: 11px;
 	color: var(--muted);
