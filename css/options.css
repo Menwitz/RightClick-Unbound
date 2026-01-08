@@ -602,6 +602,65 @@ a:hover {
 	color: #b04a2f;
 }
 
+.schedule-form {
+	max-width: 860px;
+	background: var(--surface-soft);
+	border: 1px solid var(--border);
+	border-radius: 12px;
+	padding: 14px;
+	display: grid;
+	gap: 6px;
+}
+
+.schedule-form label {
+	font-size: 10px;
+	color: var(--muted);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+.schedule-form input,
+.schedule-form select {
+	width: 100%;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	padding: 8px 10px;
+	font-size: 12px;
+	font-family: var(--font-sans);
+	background: #fff;
+	box-sizing: border-box;
+}
+
+.schedule-actions {
+	display: flex;
+	gap: 8px;
+	margin-top: 4px;
+}
+
+.schedule-actions button {
+	background: var(--ink);
+	color: #fff;
+	border: 1px solid transparent;
+	border-radius: 8px;
+	padding: 8px 12px;
+	font-size: 12px;
+	cursor: pointer;
+	font-weight: 600;
+}
+
+.schedule-actions #schedule-clear {
+	background: transparent;
+	color: var(--ink-soft);
+	border: 1px solid var(--border);
+}
+
+.schedule-list {
+	margin-top: 12px;
+	display: grid;
+	gap: 10px;
+	max-width: 860px;
+}
+
 .backup-hint {
 	font-size: 12px;
 	color: var(--ink-soft);

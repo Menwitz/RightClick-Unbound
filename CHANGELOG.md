@@ -19,3 +19,4 @@
 - Rule Builder to draft CSS selectors with live preview.
 - Snippet Vault with tags, search, and quick copy.
 - Domain tools to apply modes across all open tabs.
+- Auto-enable schedules with daily windows and durations.

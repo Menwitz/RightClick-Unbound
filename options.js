@@ -3,6 +3,8 @@
 	var editingHost = null;
 	var vaultCache = [];
 	var vaultSearchTerm = '';
+	var scheduleCache = [];
+	var editingScheduleId = null;
 
 	function callback() {
 		loadUserList();
@@ -11,6 +13,7 @@
 		initSessionPrefs();
 		initVault();
 		initDomainTools();
+		initSchedules();
 	}
 
 	function loadUserList() {
@@ -187,6 +190,14 @@
 		}
 	}
 
+	function initSchedules() {
+		if (!document.querySelector('#schedule-host')) {
+			return;
+		}
+		bindScheduleForm();
+		loadSchedules();
+	}
+
 	function handleDomainAction(value, mode, enabled) {
 		var host = normalizeHost(value);
 		if (!host) {
@@ -283,6 +294,214 @@
 				setRuleBuilderStatus('Draft ready. Clear the form to load it.');
 			}
 		});
+	}
+
+	function bindScheduleForm() {
+		var saveButton = document.querySelector('#schedule-save');
+		var clearButton = document.querySelector('#schedule-clear');
+		if (saveButton) {
+			saveButton.addEventListener('click', saveSchedule);
+		}
+		if (clearButton) {
+			clearButton.addEventListener('click', clearScheduleForm);
+		}
+	}
+
+	function loadSchedules() {
+		chrome.storage.local.get('schedule_rules', function(value) {
+			scheduleCache = normalizeScheduleRules(value.schedule_rules);
+			renderSchedules();
+		});
+	}
+
+	function normalizeScheduleRules(rules) {
+		if (!Array.isArray(rules)) {
+			return [];
+		}
+		return rules.filter(function(rule) {
+			return rule && typeof rule === 'object' && rule.id && rule.host;
+		});
+	}
+
+	function saveSchedule() {
+		var hostInput = document.querySelector('#schedule-host');
+		var modeInput = document.querySelector('#schedule-mode');
+		var startInput = document.querySelector('#schedule-start');
+		var endInput = document.querySelector('#schedule-end');
+		var durationInput = document.querySelector('#schedule-duration');
+		if (!hostInput || !modeInput || !startInput || !endInput || !durationInput) {
+			return;
+		}
+		var host = normalizeHost(hostInput.value);
+		var mode = modeInput.value;
+		var start = startInput.value.trim();
+		var end = endInput.value.trim();
+		var duration = parseInt(durationInput.value, 10);
+		if (!host) {
+			setScheduleError('Enter a valid hostname.');
+			return;
+		}
+		if (!isTimeValue(start)) {
+			setScheduleError('Enter a valid start time.');
+			return;
+		}
+		if ((!duration || duration <= 0) && !isTimeValue(end)) {
+			setScheduleError('Enter a valid end time or duration.');
+			return;
+		}
+		var rule = {
+			id: editingScheduleId || (String(Date.now()) + '-' + Math.random().toString(16).slice(2)),
+			host: host,
+			mode: mode,
+			start: start,
+			end: end,
+			durationMinutes: isNaN(duration) ? 0 : Math.max(0, duration)
+		};
+		if (editingScheduleId) {
+			scheduleCache = scheduleCache.map(function(item) {
+				return item.id === editingScheduleId ? rule : item;
+			});
+		} else {
+			scheduleCache.push(rule);
+		}
+		chrome.storage.local.set({ schedule_rules: scheduleCache }, function() {
+			clearScheduleForm();
+			renderSchedules();
+			chrome.runtime.sendMessage({ text: 'schedule-refresh' });
+		});
+	}
+
+	function renderSchedules() {
+		var list = document.querySelector('#schedule-list');
+		if (!list) {
+			return;
+		}
+		list.innerHTML = '';
+		if (!scheduleCache.length) {
+			var empty = document.createElement('div');
+			empty.className = 'rules-empty';
+			empty.textContent = 'No schedules yet.';
+			list.appendChild(empty);
+			return;
+		}
+		scheduleCache.forEach(function(rule) {
+			var item = document.createElement('div');
+			item.className = 'rule-item';
+
+			var main = document.createElement('div');
+			main.className = 'rule-main';
+
+			var hostEl = document.createElement('div');
+			hostEl.className = 'rule-host';
+			hostEl.textContent = rule.host;
+
+			var metaEl = document.createElement('div');
+			metaEl.className = 'rule-meta';
+			metaEl.textContent = formatSchedule(rule);
+
+			main.appendChild(hostEl);
+			main.appendChild(metaEl);
+
+			var actions = document.createElement('div');
+			actions.className = 'rule-actions';
+
+			var editButton = document.createElement('button');
+			editButton.type = 'button';
+			editButton.textContent = 'Edit';
+			editButton.addEventListener('click', function() {
+				editSchedule(rule.id);
+			});
+
+			var deleteButton = document.createElement('button');
+			deleteButton.type = 'button';
+			deleteButton.textContent = 'Delete';
+			deleteButton.addEventListener('click', function() {
+				deleteSchedule(rule.id);
+			});
+
+			actions.appendChild(editButton);
+			actions.appendChild(deleteButton);
+
+			item.appendChild(main);
+			item.appendChild(actions);
+			list.appendChild(item);
+		});
+	}
+
+	function formatSchedule(rule) {
+		var modeLabel = rule.mode === 'c' ? 'Unlock Copy' : (rule.mode === 'a' ? 'Force Mode' : 'Dual');
+		var windowLabel = rule.start + ' - ' + (rule.durationMinutes > 0 ? ('+' + rule.durationMinutes + 'm') : rule.end);
+		return modeLabel + ' | ' + windowLabel;
+	}
+
+	function editSchedule(id) {
+		var rule = scheduleCache.find(function(item) {
+			return item.id === id;
+		});
+		if (!rule) {
+			return;
+		}
+		var hostInput = document.querySelector('#schedule-host');
+		var modeInput = document.querySelector('#schedule-mode');
+		var startInput = document.querySelector('#schedule-start');
+		var endInput = document.querySelector('#schedule-end');
+		var durationInput = document.querySelector('#schedule-duration');
+		if (!hostInput || !modeInput || !startInput || !endInput || !durationInput) {
+			return;
+		}
+		hostInput.value = rule.host;
+		modeInput.value = rule.mode;
+		startInput.value = rule.start;
+		endInput.value = rule.end || '';
+		durationInput.value = rule.durationMinutes ? String(rule.durationMinutes) : '';
+		editingScheduleId = rule.id;
+		setScheduleError('');
+	}
+
+	function deleteSchedule(id) {
+		scheduleCache = scheduleCache.filter(function(item) {
+			return item.id !== id;
+		});
+		chrome.storage.local.set({ schedule_rules: scheduleCache }, function() {
+			renderSchedules();
+			chrome.runtime.sendMessage({ text: 'schedule-refresh' });
+		});
+	}
+
+	function clearScheduleForm() {
+		var hostInput = document.querySelector('#schedule-host');
+		var modeInput = document.querySelector('#schedule-mode');
+		var startInput = document.querySelector('#schedule-start');
+		var endInput = document.querySelector('#schedule-end');
+		var durationInput = document.querySelector('#schedule-duration');
+		if (hostInput) {
+			hostInput.value = '';
+		}
+		if (modeInput) {
+			modeInput.value = 'c';
+		}
+		if (startInput) {
+			startInput.value = '';
+		}
+		if (endInput) {
+			endInput.value = '';
+		}
+		if (durationInput) {
+			durationInput.value = '';
+		}
+		editingScheduleId = null;
+		setScheduleError('');
+	}
+
+	function setScheduleError(message) {
+		var errorEl = document.querySelector('#schedule-error');
+		if (errorEl) {
+			errorEl.textContent = message || '';
+		}
+	}
+
+	function isTimeValue(value) {
+		return /^([01]\d|2[0-3]):([0-5]\d)$/.test(value);
 	}
 
 	function normalizeRules(rules) {
@@ -553,14 +772,15 @@
 
 	function buildExportText(callback) {
 		var exportField = document.querySelector('#export-json');
-		chrome.storage.local.get(['websites_List', 'websites_Meta', 'custom_rules', 'session_prefs'], function(value) {
+		chrome.storage.local.get(['websites_List', 'websites_Meta', 'custom_rules', 'session_prefs', 'schedule_rules'], function(value) {
 			var payload = {
 				version: 1,
 				exportedAt: new Date().toISOString(),
 				websites_List: Array.isArray(value.websites_List) ? value.websites_List : [],
 				websites_Meta: value.websites_Meta && typeof value.websites_Meta === 'object' ? value.websites_Meta : {},
 				custom_rules: normalizeRules(value.custom_rules),
-				session_prefs: normalizeSessionPrefs(value.session_prefs)
+				session_prefs: normalizeSessionPrefs(value.session_prefs),
+				schedule_rules: normalizeScheduleRules(value.schedule_rules)
 			};
 			var text = JSON.stringify(payload, null, 2);
 			if (exportField) {
@@ -636,7 +856,7 @@
 			return;
 		}
 		var source = data && data.websites_List !== undefined ? data : (data && data.settings ? data.settings : null);
-		if (!source || (source.websites_List === undefined && source.websites_Meta === undefined && source.custom_rules === undefined && source.session_prefs === undefined)) {
+		if (!source || (source.websites_List === undefined && source.websites_Meta === undefined && source.custom_rules === undefined && source.session_prefs === undefined && source.schedule_rules === undefined)) {
 			setBackupStatus('Missing settings payload.', true);
 			return;
 		}
@@ -644,16 +864,21 @@
 		var meta = normalizeWebsitesMeta(source.websites_Meta, list);
 		var rules = normalizeRules(source.custom_rules);
 		var prefs = normalizeSessionPrefs(source.session_prefs);
+		var schedules = normalizeScheduleRules(source.schedule_rules);
 		chrome.storage.local.set({
 			websites_List: list,
 			websites_Meta: meta,
 			custom_rules: rules,
-			session_prefs: prefs
+			session_prefs: prefs,
+			schedule_rules: schedules
 		}, function() {
 			loadUserList();
 			loadRules();
 			updateSessionPrefsUI(prefs);
+			scheduleCache = schedules;
+			renderSchedules();
 			setBackupStatus('Settings imported.');
+			chrome.runtime.sendMessage({ text: 'schedule-refresh' });
 		});
 	}
 

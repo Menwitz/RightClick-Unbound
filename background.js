@@ -960,12 +960,168 @@
 	}
 
 	var sessionAlarmName = 'rcu-session-expiry';
+	var scheduleAlarmName = 'rcu-schedule-check';
 
 	function setupSessionAlarm() {
 		if (!chrome.alarms) {
 			return;
 		}
 		chrome.alarms.create(sessionAlarmName, { periodInMinutes: 1 });
+	}
+
+	function setupScheduleAlarm() {
+		if (!chrome.alarms) {
+			return;
+		}
+		chrome.alarms.create(scheduleAlarmName, { periodInMinutes: 1 });
+	}
+
+	function normalizeScheduleRules(rules) {
+		if (!Array.isArray(rules)) {
+			return [];
+		}
+		return rules.filter(function(rule) {
+			if (!rule || typeof rule !== 'object') {
+				return false;
+			}
+			if (typeof rule.host !== 'string' || !rule.host) {
+				return false;
+			}
+			if (rule.mode !== 'c' && rule.mode !== 'a' && rule.mode !== 'dual') {
+				return false;
+			}
+			if (typeof rule.start !== 'string' || !rule.start) {
+				return false;
+			}
+			if (typeof rule.end !== 'string' && (!rule.durationMinutes || rule.durationMinutes <= 0)) {
+				return false;
+			}
+			return true;
+		});
+	}
+
+	function normalizeScheduleState(state) {
+		var normalized = {};
+		if (!state || typeof state !== 'object') {
+			return normalized;
+		}
+		for (var key in state) {
+			if (!Object.prototype.hasOwnProperty.call(state, key)) {
+				continue;
+			}
+			var entry = state[key];
+			if (!entry || typeof entry !== 'object') {
+				continue;
+			}
+			normalized[key] = {
+				added: !!entry.added
+			};
+		}
+		return normalized;
+	}
+
+	function parseTimeToMinutes(value) {
+		if (typeof value !== 'string') {
+			return null;
+		}
+		var match = value.match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+		if (!match) {
+			return null;
+		}
+		return parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
+	}
+
+	function isWithinWindow(nowMinutes, startMinutes, endMinutes) {
+		if (startMinutes === null || endMinutes === null) {
+			return false;
+		}
+		if (startMinutes <= endMinutes) {
+			return nowMinutes >= startMinutes && nowMinutes < endMinutes;
+		}
+		return nowMinutes >= startMinutes || nowMinutes < endMinutes;
+	}
+
+	function getRuleModes(rule) {
+		if (rule.mode === 'dual') {
+			return ['c', 'a'];
+		}
+		return [rule.mode];
+	}
+
+	function handleScheduleCheck() {
+		loadWebsites(function() {
+			loadSessionData(function(sessionData) {
+				chrome.storage.local.get(['schedule_rules', 'schedule_state'], function(value) {
+					var rules = normalizeScheduleRules(value.schedule_rules);
+					var state = normalizeScheduleState(value.schedule_state);
+					var now = new Date();
+					var nowMinutes = now.getHours() * 60 + now.getMinutes();
+					var activeKeys = {};
+					var enabledHosts = {};
+					var disabledHosts = {};
+					rules.forEach(function(rule) {
+						var host = normalizeHostInput(rule.host);
+						if (!host) {
+							return;
+						}
+						var startMinutes = parseTimeToMinutes(rule.start);
+						if (startMinutes === null) {
+							return;
+						}
+						var endMinutes = null;
+						var duration = parseInt(rule.durationMinutes, 10);
+						if (!isNaN(duration) && duration > 0) {
+							endMinutes = (startMinutes + duration) % (24 * 60);
+						} else {
+							endMinutes = parseTimeToMinutes(rule.end);
+						}
+						if (endMinutes === null) {
+							return;
+						}
+						if (!isWithinWindow(nowMinutes, startMinutes, endMinutes)) {
+							return;
+						}
+						getRuleModes(rule).forEach(function(mode) {
+							var key = host + '#' + mode;
+							activeKeys[key] = true;
+							if (websites_List.indexOf(key) === -1) {
+								websites_List.push(key);
+								updateMeta(key);
+								state[key] = { added: true };
+								enabledHosts[host] = true;
+							} else if (!state[key]) {
+								state[key] = { added: false };
+							}
+						});
+					});
+					var changed = false;
+					for (var key in state) {
+						if (!Object.prototype.hasOwnProperty.call(state, key)) {
+							continue;
+						}
+						if (activeKeys[key]) {
+							continue;
+						}
+						if (state[key].added) {
+							changed = removeEntry(key) || changed;
+							var host = key.split('#')[0];
+							disabledHosts[host] = true;
+						}
+						delete state[key];
+					}
+					if (changed) {
+						saveData();
+					}
+					chrome.storage.local.set({ schedule_state: state });
+					Object.keys(enabledHosts).forEach(function(host) {
+						applyDomainStateToTabs(host, sessionData);
+					});
+					Object.keys(disabledHosts).forEach(function(host) {
+						notifyReloadTabs(host, 'Reload to disable (schedule ended).');
+					});
+				});
+			});
+		});
 	}
 
 	function handleSessionExpiry() {
@@ -1011,11 +1167,13 @@
 	chrome.runtime.onInstalled.addListener(function() {
 		setupContextMenus();
 		setupSessionAlarm();
+		setupScheduleAlarm();
 	});
 
 	chrome.runtime.onStartup.addListener(function() {
 		setupContextMenus();
 		setupSessionAlarm();
+		setupScheduleAlarm();
 	});
 
 	chrome.runtime.onMessage.addListener(function(request, sender) {
@@ -1044,6 +1202,10 @@
 								}
 							});
 						}
+						return;
+					}
+					if (text === 'schedule-refresh') {
+						handleScheduleCheck();
 						return;
 					}
 					if (text === 'rule-builder') {
@@ -1197,6 +1359,9 @@
 	chrome.alarms.onAlarm.addListener(function(alarm) {
 		if (alarm && alarm.name === sessionAlarmName) {
 			handleSessionExpiry();
+		}
+		if (alarm && alarm.name === scheduleAlarmName) {
+			handleScheduleCheck();
 		}
 	});
 

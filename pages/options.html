@@ -129,6 +129,31 @@
 			</div>
 		</div>
 		<div class="section">
+			<div class="section-title">Auto-Enable Schedules:</div>
+			<div class="schedule-form">
+				<label for="schedule-host">Site hostname</label>
+				<input id="schedule-host" type="text" placeholder="example.com">
+				<label for="schedule-mode">Mode</label>
+				<select id="schedule-mode">
+					<option value="c">Unlock Copy</option>
+					<option value="a">Force Mode</option>
+					<option value="dual">Dual</option>
+				</select>
+				<label for="schedule-start">Start time</label>
+				<input id="schedule-start" type="time">
+				<label for="schedule-end">End time</label>
+				<input id="schedule-end" type="time">
+				<label for="schedule-duration">Duration minutes (optional)</label>
+				<input id="schedule-duration" type="number" min="0" step="1" placeholder="0">
+				<div class="schedule-actions">
+					<button id="schedule-save" type="button">Save Schedule</button>
+					<button id="schedule-clear" type="button">Clear</button>
+				</div>
+				<div id="schedule-error" class="rules-error" aria-live="polite"></div>
+			</div>
+			<div id="schedule-list" class="schedule-list"></div>
+		</div>
+		<div class="section">
 			<div class="section-title">Backup &amp; Transfer:</div>
 			<div class="backup-hint">Export or import your site list and custom rules.</div>
 			<div class="backup-actions">
