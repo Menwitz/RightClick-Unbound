@@ -1,14 +1,17 @@
 (function() {
 
 	var websites_List = [];
+	var websites_Meta = {};
 	var hostname;
 
 	function loadWebsites(callback) {
-		chrome.storage.local.get(['websites_List'], function(value) {
+		chrome.storage.local.get(['websites_List', 'websites_Meta'], function(value) {
 			var rawList = Array.isArray(value.websites_List) ? value.websites_List : [];
 			var normalized = normalizeWebsitesList(rawList);
+			var metaInfo = normalizeWebsitesMeta(value.websites_Meta, normalized);
 			websites_List = normalized;
-			if (rawList.length !== normalized.length) {
+			websites_Meta = metaInfo.meta;
+			if (rawList.length !== normalized.length || metaInfo.changed) {
 				saveData();
 			}
 			callback();
@@ -38,12 +41,44 @@
 		return normalized;
 	}
 
+	function normalizeWebsitesMeta(meta, list) {
+		var normalized = {};
+		var changed = false;
+		if (!meta || typeof meta !== 'object') {
+			return { meta: normalized, changed: meta !== undefined && meta !== null };
+		}
+		for (var i = 0; i < list.length; i++) {
+			var entry = list[i];
+			var stamp = meta[entry];
+			if (typeof stamp === 'number' && isFinite(stamp)) {
+				normalized[entry] = stamp;
+			} else if (stamp !== undefined) {
+				changed = true;
+			}
+		}
+		for (var key in meta) {
+			if (Object.prototype.hasOwnProperty.call(meta, key) && list.indexOf(key) === -1) {
+				changed = true;
+			}
+		}
+		return { meta: normalized, changed: changed };
+	}
+
 	function removeEntry(entry) {
 		var before = websites_List.length;
 		websites_List = websites_List.filter(function(item) {
 			return item !== entry;
 		});
-		return websites_List.length !== before;
+		var changed = websites_List.length !== before;
+		if (websites_Meta[entry] !== undefined) {
+			delete websites_Meta[entry];
+			changed = true;
+		}
+		return changed;
+	}
+
+	function updateMeta(entry) {
+		websites_Meta[entry] = Date.now();
 	}
 
 	function isHttpUrl(url) {
@@ -92,10 +127,12 @@
 
 	function enableCopy(url, text, tabId) {
 		if (text === 'c-true') {
-			if (websites_List.indexOf(url + '#c') === -1) {
-				websites_List.push(url + '#c');
-				saveData();
+			var copyEntry = url + '#c';
+			if (websites_List.indexOf(copyEntry) === -1) {
+				websites_List.push(copyEntry);
 			}
+			updateMeta(copyEntry);
+			saveData();
 			inject(tabId, url);
 		}
 		if (text === 'c-false') {
@@ -104,10 +141,12 @@
 			}
 		}
 		if (text === 'a-true') {
-			if (websites_List.indexOf(url + '#a') === -1) {
-				websites_List.push(url + '#a');
-				saveData();
+			var absEntry = url + '#a';
+			if (websites_List.indexOf(absEntry) === -1) {
+				websites_List.push(absEntry);
 			}
+			updateMeta(absEntry);
+			saveData();
 			inject(tabId, url);
 		}
 		if (text === 'a-false') {
@@ -148,7 +187,8 @@
 
 	function saveData() {
 		chrome.storage.local.set({
-			'websites_List' : websites_List
+			'websites_List' : websites_List,
+			'websites_Meta' : websites_Meta
 		});
 	}
 

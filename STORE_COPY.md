@@ -17,6 +17,12 @@ How it works:
 2) Toggle "Unlock Copy" for the current site.
 3) Use "Force Mode" if needed and reload when prompted.
 
+Tested scenarios:
+- News sites (nytimes.com, medium.com).
+- Docs apps (docs.google.com, notion.so).
+- PDFs (local or web).
+- Embedded iframes.
+
 Privacy:
 - No data collected. No accounts. No tracking.
 

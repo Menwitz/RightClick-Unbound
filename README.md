@@ -9,6 +9,12 @@ Restore right-click and copy on restrictive pages with quick toggles and an opti
 - Reload the tab when prompted to apply changes.
 - Open Settings to manage your site list and remove entries to disable.
 
+## Quick test pass
+- News site: nytimes.com or medium.com. Toggle Unlock Copy, verify copy + right-click, then disable and confirm reload prompt.
+- Docs app: docs.google.com or notion.so. Verify toggles and list entry behavior.
+- PDF: local file or web PDF. Ensure it still works and does not break selection.
+- Embedded iframe page: enable and confirm copy inside the iframe.
+
 ## Permissions
 - `tabs` and `activeTab`: detect the active tab and trigger reloads when toggles change.
 - `storage`: save the user list and per-site mode choices.
