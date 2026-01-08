@@ -8,6 +8,13 @@
 ## Force Mode breaks a site
 - Disable Force Mode for that site and reload.
 
+## What does Session Only do?
+- It enables changes for the current tab only and automatically disables when the tab closes.
+
+## How do custom rules work?
+- Add per-site CSS or JS in Settings.
+- Rules apply only when Unlock Copy or Force Mode is enabled for that site.
+
 ## Why do I need to reload?
 - The page needs the updated scripts after you change a toggle.
 

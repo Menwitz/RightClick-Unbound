@@ -4,9 +4,13 @@
 	var a = false;
 	var r = false;
 	var isBlocked = false;
+	var sessionOnly = false;
 	var stateEl = document.querySelector('.state');
 	var stateLabel = document.querySelector('.state-label');
 	var stateValue = document.querySelector('.state-value');
+	var sessionEl = document.querySelector('.session-mode');
+	var failureEl = document.querySelector('.failure');
+	var failureText = document.querySelector('.failure-text');
 
 	chrome.runtime.sendMessage({
 		text: 'state'
@@ -27,6 +31,13 @@
 		} else if (request.a === 'false') {
 			a = false;
 		}
+		if (typeof request.session === 'boolean') {
+			sessionOnly = request.session;
+			updateSessionUI();
+		}
+		if (request.error !== undefined) {
+			updateFailure(request.error);
+		}
 		state();
 	});
 
@@ -37,6 +48,12 @@
 	document.querySelector('.abs-mode').onclick = function () {
 		absoluteMode();
 	};
+
+	if (sessionEl) {
+		sessionEl.onclick = function () {
+			toggleSessionOnly();
+		};
+	}
 
 	document.querySelector('.reload').onclick = function () {
 		chrome.tabs.reload();
@@ -60,11 +77,15 @@
 		if (!/^https?:\/\//i.test(url)) {
 			document.querySelector('.enable-copy').remove();
 			document.querySelector('.abs-mode').remove();
+			if (sessionEl) {
+				sessionEl.remove();
+			}
 			document.querySelector('.description').remove();
 			stateEl.classList.add('state--blocked');
 			stateLabel.textContent = 'Unavailable';
 			stateValue.textContent = 'This page cannot be modified';
 			isBlocked = true;
+			updateFailure(null);
 		}
 	});
 
@@ -84,6 +105,7 @@
 			chrome.runtime.sendMessage(message);
 		}
 		state(r);
+		updateFailure(null);
 	}
 
 	function absoluteMode(message) {
@@ -102,6 +124,22 @@
 			chrome.runtime.sendMessage(message);
 		}
 		state(r);
+		updateFailure(null);
+	}
+
+	function toggleSessionOnly() {
+		if (isBlocked) {
+			return;
+		}
+		sessionOnly = !sessionOnly;
+		updateSessionUI();
+		chrome.runtime.sendMessage({
+			text: 'session-toggle',
+			enabled: sessionOnly
+		});
+		chrome.runtime.sendMessage({
+			text: 'state'
+		});
 	}
 
 	function state(r) {
@@ -129,6 +167,26 @@
 			stateValue.textContent = 'Enabled';
 			stateEl.classList.add('is-enabled');
 		}
+	}
+
+	function updateSessionUI() {
+		if (!sessionEl) {
+			return;
+		}
+		sessionEl.querySelector('img').src = sessionOnly ? 'images/on.png' : 'images/off.png';
+	}
+
+	function updateFailure(error) {
+		if (!failureEl || !failureText) {
+			return;
+		}
+		if (!error || !error.hint || isBlocked) {
+			failureEl.classList.remove('is-visible');
+			failureText.textContent = '';
+			return;
+		}
+		failureText.textContent = error.hint;
+		failureEl.classList.add('is-visible');
 	}
 
 	function reload() {

@@ -61,6 +61,25 @@
 			</ul>
 		</div>
 		<div class="section">
+			<div class="section-title">Advanced Rules:</div>
+			<div class="rules-intro">Apply custom CSS or JS when a site is enabled.</div>
+			<div class="rules-form">
+				<label for="rule-host">Site hostname</label>
+				<input id="rule-host" type="text" placeholder="example.com">
+				<label for="rule-css">Custom CSS (optional)</label>
+				<textarea id="rule-css" rows="4" placeholder="body { user-select: text !important; }"></textarea>
+				<label for="rule-js">Custom JS (optional)</label>
+				<textarea id="rule-js" rows="4" placeholder="document.body.style.userSelect = 'text';"></textarea>
+				<div class="rules-actions">
+					<button id="rule-save" type="button">Save Rule</button>
+					<button id="rule-clear" type="button">Clear</button>
+				</div>
+				<div class="rules-hint">Use the exact hostname (example.com). Rules apply only when Unlock Copy or Force Mode is enabled.</div>
+				<div id="rule-error" class="rules-error" aria-live="polite"></div>
+			</div>
+			<div id="rules-list" class="rules-list"></div>
+		</div>
+		<div class="section">
 			<div class="section-title">Limitations:</div>
 			<ul class="section-list">
 				<li>Some sites cannot be unlocked due to strict security policies.</li>

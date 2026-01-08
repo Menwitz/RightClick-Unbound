@@ -7,3 +7,4 @@
 - Diagnostics (last enabled time + mode) in Settings.
 - Popup copy refresh and Settings UX polish.
 - Privacy policy, support FAQ, and QA/release docs.
+- Session-only toggle, injection failure hints, and custom CSS/JS rules.

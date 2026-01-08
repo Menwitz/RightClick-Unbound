@@ -9,7 +9,9 @@ RightClick Unbound restores right-click and copy on restrictive pages in one cli
 Key features:
 - One-click enable for the current site.
 - Force Mode for stricter sites.
+- Session-only mode that auto-disables when the tab closes.
 - Per-site list management in Settings.
+- Advanced rules with custom CSS or JS per site.
 - Clear status and reload prompts.
 
 How it works:
