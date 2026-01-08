@@ -9,3 +9,4 @@
 - Privacy policy, support FAQ, and QA/release docs.
 - Session-only toggle, injection failure hints, and custom CSS/JS rules.
 - Quick profiles, settings export/import, and keyboard hotkeys.
+- Context menu controls and a quick on-page panel.

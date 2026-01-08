@@ -46,7 +46,7 @@
       "page": "pages/options.html",
       "open_in_tab": true
    },
-   "permissions": [ "tabs", "activeTab", "storage", "scripting" ],
+   "permissions": [ "tabs", "activeTab", "storage", "scripting", "contextMenus" ],
    "host_permissions": [ "\u003Call_urls>" ],
    "short_name": "RC Unbound",
    "author": "Unbound Tools",

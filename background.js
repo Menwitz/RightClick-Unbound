@@ -379,7 +379,117 @@
 		}
 	}
 
-	chrome.runtime.onMessage.addListener(function(request) {
+	function resolveMessageTab(sender, callback) {
+		if (sender && sender.tab) {
+			callback(sender.tab);
+			return;
+		}
+		chrome.tabs.query({ currentWindow: true, active: true }, function(tabs) {
+			callback(tabs[0]);
+		});
+	}
+
+	var menuIds = {
+		root: 'rcu-root',
+		unlock: 'rcu-unlock',
+		force: 'rcu-force',
+		session: 'rcu-session',
+		panel: 'rcu-panel',
+		settings: 'rcu-settings'
+	};
+
+	function setupContextMenus() {
+		if (!chrome.contextMenus) {
+			return;
+		}
+		chrome.contextMenus.removeAll(function() {
+			chrome.contextMenus.create({
+				id: menuIds.root,
+				title: 'RightClick Unbound',
+				contexts: ['all']
+			});
+			chrome.contextMenus.create({
+				id: menuIds.unlock,
+				parentId: menuIds.root,
+				title: 'Unlock Copy',
+				type: 'checkbox',
+				contexts: ['all']
+			});
+			chrome.contextMenus.create({
+				id: menuIds.force,
+				parentId: menuIds.root,
+				title: 'Force Mode',
+				type: 'checkbox',
+				contexts: ['all']
+			});
+			chrome.contextMenus.create({
+				id: menuIds.session,
+				parentId: menuIds.root,
+				title: 'Session Only',
+				type: 'checkbox',
+				contexts: ['all']
+			});
+			chrome.contextMenus.create({
+				id: menuIds.panel,
+				parentId: menuIds.root,
+				title: 'Show Quick Panel',
+				contexts: ['all']
+			});
+			chrome.contextMenus.create({
+				id: menuIds.settings,
+				parentId: menuIds.root,
+				title: 'Open Settings',
+				contexts: ['all']
+			});
+		});
+	}
+
+	function updateContextMenuState(tab, sessionData) {
+		if (!chrome.contextMenus) {
+			return;
+		}
+		var enabled = tab && tab.url && isHttpUrl(tab.url);
+		if (!enabled) {
+			chrome.contextMenus.update(menuIds.unlock, { checked: false, enabled: false });
+			chrome.contextMenus.update(menuIds.force, { checked: false, enabled: false });
+			chrome.contextMenus.update(menuIds.session, { checked: false, enabled: false });
+			chrome.contextMenus.update(menuIds.panel, { enabled: false });
+			chrome.contextMenus.refresh();
+			return;
+		}
+		var host = (new URL(tab.url)).hostname;
+		var state = getEffectiveState(tab.id, host, sessionData);
+		var sessionEnabled = isSessionScoped(sessionData.scope, tab.id, host);
+		chrome.contextMenus.update(menuIds.unlock, { checked: state.c, enabled: true });
+		chrome.contextMenus.update(menuIds.force, { checked: state.a, enabled: true });
+		chrome.contextMenus.update(menuIds.session, { checked: sessionEnabled, enabled: true });
+		chrome.contextMenus.update(menuIds.panel, { enabled: true });
+		chrome.contextMenus.refresh();
+	}
+
+	function showQuickPanel(tabId, tabUrl) {
+		chrome.scripting.executeScript({
+			target: { tabId: tabId },
+			files: ['js/overlay.js']
+		}, function() {
+			var checkError = chrome.runtime.lastError;
+			if (checkError) {
+				recordInjectionError(tabId, tabUrl, checkError.message);
+			} else {
+				clearInjectionError(tabId);
+			}
+		});
+	}
+
+	chrome.runtime.onInstalled.addListener(function() {
+		setupContextMenus();
+	});
+
+	chrome.runtime.onStartup.addListener(function() {
+		setupContextMenus();
+	});
+
+	chrome.runtime.onMessage.addListener(function(request, sender) {
 		var text = request.text;
 		if (text === 'delete-url') {
 			loadWebsites(function() {
@@ -391,8 +501,7 @@
 		}
 		loadWebsites(function() {
 			loadSessionData(function(sessionData) {
-				chrome.tabs.query({ currentWindow: true, active: true }, function(tabs) {
-					var tab = tabs[0];
+				resolveMessageTab(sender, function(tab) {
 					if (!tab || !isHttpUrl(tab.url)) {
 						return;
 					}
@@ -407,6 +516,54 @@
 					}
 					enableCopy(host, text, tab, sessionData);
 				});
+			});
+		});
+	});
+
+	chrome.contextMenus.onShown.addListener(function(info, tab) {
+		loadWebsites(function() {
+			loadSessionData(function(sessionData) {
+				updateContextMenuState(tab, sessionData);
+			});
+		});
+	});
+
+	chrome.contextMenus.onClicked.addListener(function(info, tab) {
+		if (info.menuItemId === menuIds.settings) {
+			chrome.tabs.create({ url: 'pages/options.html' });
+			return;
+		}
+		if (!tab || !tab.url) {
+			return;
+		}
+		if (info.menuItemId === menuIds.panel) {
+			if (isHttpUrl(tab.url)) {
+				showQuickPanel(tab.id, tab.url);
+			} else {
+				recordInjectionError(tab.id, tab.url, 'Unsupported page');
+			}
+			return;
+		}
+		if (!isHttpUrl(tab.url)) {
+			recordInjectionError(tab.id, tab.url, 'Unsupported page');
+			return;
+		}
+		loadWebsites(function() {
+			loadSessionData(function(sessionData) {
+				var host = (new URL(tab.url)).hostname;
+				if (info.menuItemId === menuIds.session) {
+					handleSessionToggle(tab, host, sessionData, !!info.checked);
+					return;
+				}
+				if (info.menuItemId === menuIds.unlock) {
+					enableCopy(host, info.checked ? 'c-true' : 'c-false', tab, sessionData);
+					sendState(tab, host, sessionData);
+					return;
+				}
+				if (info.menuItemId === menuIds.force) {
+					enableCopy(host, info.checked ? 'a-true' : 'a-false', tab, sessionData);
+					sendState(tab, host, sessionData);
+				}
 			});
 		});
 	});
