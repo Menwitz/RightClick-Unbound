@@ -544,8 +544,10 @@
 		overlays: 'rcu-overlays',
 		cleanCopy: 'rcu-clean-copy',
 		mdCopy: 'rcu-md-copy',
+		ruleBuilder: 'rcu-rule-builder',
 		settings: 'rcu-settings'
 	};
+	var lastActiveHttpTabId = null;
 
 	function setupContextMenus() {
 		if (!chrome.contextMenus) {
@@ -609,6 +611,12 @@
 				contexts: ['all']
 			});
 			chrome.contextMenus.create({
+				id: menuIds.ruleBuilder,
+				parentId: menuIds.root,
+				title: 'Rule Builder',
+				contexts: ['all']
+			});
+			chrome.contextMenus.create({
 				id: menuIds.settings,
 				parentId: menuIds.root,
 				title: 'Open Settings',
@@ -631,6 +639,7 @@
 			chrome.contextMenus.update(menuIds.overlays, { enabled: false });
 			chrome.contextMenus.update(menuIds.cleanCopy, { enabled: false });
 			chrome.contextMenus.update(menuIds.mdCopy, { enabled: false });
+			chrome.contextMenus.update(menuIds.ruleBuilder, { enabled: false });
 			chrome.contextMenus.refresh();
 			return;
 		}
@@ -645,6 +654,7 @@
 		chrome.contextMenus.update(menuIds.overlays, { enabled: true });
 		chrome.contextMenus.update(menuIds.cleanCopy, { enabled: true });
 		chrome.contextMenus.update(menuIds.mdCopy, { enabled: true });
+		chrome.contextMenus.update(menuIds.ruleBuilder, { enabled: true });
 		chrome.contextMenus.refresh();
 	}
 
@@ -716,6 +726,20 @@
 					clearInjectionError(tabId);
 				}
 			});
+		});
+	}
+
+	function openRuleBuilder(tabId, tabUrl) {
+		chrome.scripting.executeScript({
+			target: { tabId: tabId },
+			files: ['js/rule-builder.js']
+		}, function() {
+			var checkError = chrome.runtime.lastError;
+			if (checkError) {
+				recordInjectionError(tabId, tabUrl, checkError.message);
+			} else {
+				clearInjectionError(tabId);
+			}
 		});
 	}
 
@@ -819,6 +843,20 @@
 						runCleanCopy(tab.id, tab.url, 'markdown');
 						return;
 					}
+					if (text === 'rule-builder') {
+						if (tab && isHttpUrl(tab.url)) {
+							openRuleBuilder(tab.id, tab.url);
+							return;
+						}
+						if (lastActiveHttpTabId !== null) {
+							chrome.tabs.get(lastActiveHttpTabId, function(lastTab) {
+								if (lastTab && isHttpUrl(lastTab.url)) {
+									openRuleBuilder(lastTab.id, lastTab.url);
+								}
+							});
+						}
+						return;
+					}
 					enableCopy(host, text, tab, sessionData);
 				});
 			});
@@ -876,6 +914,14 @@
 		if (info.menuItemId === menuIds.mdCopy) {
 			if (isHttpUrl(tab.url)) {
 				runCleanCopy(tab.id, tab.url, 'markdown');
+			} else {
+				recordInjectionError(tab.id, tab.url, 'Unsupported page');
+			}
+			return;
+		}
+		if (info.menuItemId === menuIds.ruleBuilder) {
+			if (isHttpUrl(tab.url)) {
+				openRuleBuilder(tab.id, tab.url);
 			} else {
 				recordInjectionError(tab.id, tab.url, 'Unsupported page');
 			}
@@ -968,6 +1014,11 @@
 	});
 
 	chrome.tabs.onActivated.addListener(function(activeInfo) {
+		chrome.tabs.get(activeInfo.tabId, function(tab) {
+			if (tab && isHttpUrl(tab.url)) {
+				lastActiveHttpTabId = tab.id;
+			}
+		});
 		loadWebsites(function() {
 			loadSessionData(function(sessionData) {
 				if (hasSessionForTab(sessionData, activeInfo.tabId)) {

@@ -90,6 +90,7 @@
 		}
 		bindRuleForm();
 		loadRules();
+		loadRuleDraft();
 	}
 
 	function initBackup() {
@@ -144,17 +145,49 @@
 	function bindRuleForm() {
 		var saveButton = document.querySelector('#rule-save');
 		var clearButton = document.querySelector('#rule-clear');
+		var builderButton = document.querySelector('#rule-builder');
 		if (!saveButton || !clearButton) {
 			return;
 		}
 		saveButton.addEventListener('click', saveRule);
 		clearButton.addEventListener('click', clearRuleForm);
+		if (builderButton) {
+			builderButton.addEventListener('click', function() {
+				chrome.runtime.sendMessage({ text: 'rule-builder' });
+				setRuleBuilderStatus('Rule Builder active. Select an element on the page.');
+			});
+		}
 	}
 
 	function loadRules() {
 		chrome.storage.local.get('custom_rules', function(value) {
 			rulesCache = normalizeRules(value.custom_rules);
 			renderRules();
+		});
+	}
+
+	function loadRuleDraft() {
+		chrome.storage.local.get('rule_builder_draft', function(value) {
+			var draft = value.rule_builder_draft;
+			if (!draft || !draft.host) {
+				return;
+			}
+			var hostInput = document.querySelector('#rule-host');
+			var cssInput = document.querySelector('#rule-css');
+			var jsInput = document.querySelector('#rule-js');
+			if (!hostInput || !cssInput || !jsInput) {
+				return;
+			}
+			if (!hostInput.value && !cssInput.value && !jsInput.value) {
+				hostInput.value = draft.host;
+				cssInput.value = draft.css || '';
+				jsInput.value = draft.js || '';
+				editingHost = draft.host;
+				setRuleButtonLabel('Save Draft');
+				setRuleBuilderStatus('Draft loaded from Rule Builder.');
+			} else {
+				setRuleBuilderStatus('Draft ready. Clear the form to load it.');
+			}
 		});
 	}
 
@@ -531,6 +564,8 @@
 		chrome.storage.local.set({ custom_rules: rulesCache }, function() {
 			clearRuleForm();
 			renderRules();
+			chrome.storage.local.remove('rule_builder_draft');
+			setRuleBuilderStatus('Rule saved.');
 		});
 	}
 
@@ -595,6 +630,13 @@
 		var errorEl = document.querySelector('#rule-error');
 		if (errorEl) {
 			errorEl.textContent = message || '';
+		}
+	}
+
+	function setRuleBuilderStatus(message) {
+		var statusEl = document.querySelector('#rule-builder-status');
+		if (statusEl) {
+			statusEl.textContent = message || '';
 		}
 	}
 

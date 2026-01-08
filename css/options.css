@@ -425,6 +425,34 @@ a:hover {
 	box-shadow: none;
 }
 
+.rules-builder {
+	display: grid;
+	gap: 6px;
+	margin-top: 4px;
+}
+
+.rules-builder button {
+	background: transparent;
+	color: var(--ink-soft);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	padding: 8px 12px;
+	font-size: 12px;
+	cursor: pointer;
+	font-weight: 600;
+	transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.rules-builder button:hover {
+	transform: translateY(-1px);
+	box-shadow: var(--shadow-soft);
+}
+
+.rules-builder button:active {
+	transform: translateY(0);
+	box-shadow: none;
+}
+
 .backup-hint {
 	font-size: 12px;
 	color: var(--ink-soft);

@@ -103,6 +103,7 @@
 			<button class="rcu-button" type="button" data-action="overlays">Remove Overlays</button>
 			<button class="rcu-button" type="button" data-action="clean-copy">Clean Copy</button>
 			<button class="rcu-button" type="button" data-action="markdown-copy">Copy Markdown</button>
+			<button class="rcu-button" type="button" data-action="rule-builder">Rule Builder</button>
 			<button class="rcu-button" type="button" data-action="disable">Disable</button>
 		</div>
 		<div class="rcu-footer">Disabling may require a reload.</div>
@@ -163,6 +164,10 @@
 		}
 		if (action === 'markdown-copy') {
 			chrome.runtime.sendMessage({ text: 'markdown-copy' });
+			return;
+		}
+		if (action === 'rule-builder') {
+			chrome.runtime.sendMessage({ text: 'rule-builder' });
 			return;
 		}
 		if (action === 'disable') {
