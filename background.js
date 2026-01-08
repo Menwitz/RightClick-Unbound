@@ -3,29 +3,44 @@
 	var websites_List = [];
 	var hostname;
 
-	chrome.storage.local.get(['websites_List'], function(value) {
-		if (value.websites_List === undefined) {
-			websites_List = [];
-		} else {
-			websites_List = value.websites_List;
-		}
-	});
+	function loadWebsites(callback) {
+		chrome.storage.local.get(['websites_List'], function(value) {
+			if (value.websites_List === undefined) {
+				websites_List = [];
+			} else {
+				websites_List = value.websites_List;
+			}
+			callback();
+		});
+	}
+
+	function isHttpUrl(url) {
+		return typeof url === 'string' && /^https?:\/\//i.test(url);
+	}
 
 	chrome.runtime.onMessage.addListener(function(request) {
-		var text = request.text;
-		chrome.tabs.query({ currentWindow: true, active: true }, function(tabs) {
-			var url = (new URL(tabs[0].url)).hostname;
-			state(url, text);
-			enableCopy(url, text, tabs[0].id);
+		loadWebsites(function() {
+			var text = request.text;
+			chrome.tabs.query({ currentWindow: true, active: true }, function(tabs) {
+				var tab = tabs[0];
+				if (!tab || !isHttpUrl(tab.url)) {
+					return;
+				}
+				var url = (new URL(tab.url)).hostname;
+				state(url, text);
+				enableCopy(url, text, tab.id);
+			});
+			if (text === 'delete-url') {
+				deleteUrl(request.url); 
+			}
 		});
-		if (text === 'delete-url') {
-			deleteUrl(request.url); 
-		}
 	});
 
 	chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
-		if (changeInfo.status === 'complete') {
-			getHostName(tab.url, tabId);
+		if (changeInfo.status === 'complete' && tab && isHttpUrl(tab.url)) {
+			loadWebsites(function() {
+				getHostName(tab.url, tabId);
+			});
 		}
 	});
 
@@ -78,8 +93,9 @@
 		if (url !== undefined && url !== null) {
 			if (tabId !== undefined) {
 				if (websites_List.indexOf(url + '#c') !== -1) {
-					chrome.tabs.executeScript(tabId, {
-						file: 'js/enable.js'
+					chrome.scripting.executeScript({
+						target: { tabId: tabId },
+						files: ['js/enable.js']
 					}, function() {
 						var checkError = chrome.runtime.lastError;
 						if (checkError)
@@ -88,9 +104,9 @@
 					);
 				}
 				if (websites_List.indexOf(url + '#a') !== -1) {
-					chrome.tabs.executeScript(tabId, {
-						file: 'js/enableA.js',
-						allFrames: true
+					chrome.scripting.executeScript({
+						target: { tabId: tabId, allFrames: true },
+						files: ['js/enableA.js']
 					}, function() {
 						var checkError = chrome.runtime.lastError;
 						if (checkError)
