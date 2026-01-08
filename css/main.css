@@ -30,7 +30,7 @@ div, img {
 	align-items: center;
 	text-align: center;
 	font-family: Segoe UI, Arial, sans-serif;
-	border-bottom: 1px solid #f6e6e6;
+	border-bottom: 1px solid #f4f1ec;
 }
 
 .title-bar span {
@@ -43,10 +43,32 @@ div, img {
 
 .state {
 	font-family: Segoe UI, Arial, sans-serif;
+	text-align: center;
+	padding: 18px 0 14px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.state-label {
+	font-size: 10px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: #9a9a9a;
+}
+
+.state-value {
 	font-size: 14px;
 	color: #666;
-	text-align: center;
-	padding: 26px;
+}
+
+.state.is-enabled .state-value {
+	color: #0b3d3e;
+	font-weight: 600;
+}
+
+.state.state--blocked .state-value {
+	color: #a98e8e;
 }
 
 .mid-container {
@@ -89,7 +111,7 @@ div, img {
 
 .check-image {
 	width: auto;
-	height: 14px;
+	height: 16px;
 	background-repeat: no-repeat;
 	user-select: none;
 	float: right;
@@ -134,7 +156,7 @@ div, img {
 	height: 40px;
 	bottom: 0;
 	color: #545454;
-	background-color: #f1f3f4;
+	background-color: #f4f1ec;
 	text-decoration: unset;
 	display: flex;
 	align-items: center;
@@ -176,11 +198,11 @@ div, img {
 }
 
 .enable-copy:hover, .abs-mode:hover {
-	background: #ece9e3;
+	background: #f4f1ec;
 }
 
 .enable-copy:active, .abs-mode:active {
-	background: #e4e1d9;
+	background: #eadfd2;
 }
 
 .reload:hover {

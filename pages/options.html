@@ -20,13 +20,16 @@
 
 	<div class="table">
 		<div class="table-header">
-			<label class="label-title">User-List</label>
-			<label class="label-hint">Copy enabled for these websites</label>
+			<label class="label-title">Sites</label>
+			<label class="label-hint">Enabled for these sites</label>
 		</div>
 		<div class="table-grid">
 			<div id="user-list" class="table-grid-max">
 			</div>
-			<div class="list-empty">User-List is empty.</div>
+			<div class="list-empty">
+				<div class="empty-title">No sites enabled yet</div>
+				<div class="empty-hint">Open a page and toggle Unlock Copy or Force Mode to add it here.</div>
+			</div>
 		</div>
 		<i class="table-border-bottom"></i>
 	</div>
@@ -35,13 +38,21 @@
 
 	<div class="info">
 		<div class="section">
-			<div class="section-title">Please Note:</div>
+			<div class="section-title">How it works:</div>
 			<ul class="section-list">
-				<li>Enabling copy may break some websites functionality.</li>
-				<li>Some websites using a hidden frame or image (ghost image) above the text to prevent copy, and you will need to use your own method to remove it.</li>
-				<li>There isn't any way to enable copy on website that using "div to iframe script", but still there are twisted methods.</li>
-				<li>If you don't like this extension just remove it.</li>
-				<li>This extension available on Google Chrome and Firefox.</li>
+				<li>Open a site and toggle Unlock Copy or Force Mode.</li>
+				<li>That site is added here with the chosen mode.</li>
+				<li>Remove it from this list to stop applying it.</li>
+			</ul>
+		</div>
+		<div class="section">
+			<div class="section-title">Notes:</div>
+			<ul class="section-list">
+				<li>Unlocking copy can break some site interactions.</li>
+				<li>Some sites use overlays to block selection; you may need to remove them manually.</li>
+				<li>Iframe-heavy sites may still resist, even with Force Mode.</li>
+				<li>You can remove this extension at any time.</li>
+				<li>Built for Google Chrome.</li>
 			</ul>
 		</div>
 		<div class="section">
@@ -66,7 +77,6 @@
 			</div>
 			<div class="browsers-support">
 				<a href="https://chromewebstore.google.com/detail/rightclick-unbound/jdocbkpgdakpekjlhemmfcncgdjeiika" class="ico--chrome" target="_blank" title="Google Chrome"></a>
-				<a href="https://addons.mozilla.org/firefox/addon/rightclick-unbound/" class="ico--firefox" target="_blank" title="Firefox"></a>
 			</div>
 		</div>
 	</div>

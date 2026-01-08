@@ -3,6 +3,10 @@
 	var c = false;
 	var a = false;
 	var r = false;
+	var isBlocked = false;
+	var stateEl = document.querySelector('.state');
+	var stateLabel = document.querySelector('.state-label');
+	var stateValue = document.querySelector('.state-value');
 
 	chrome.runtime.sendMessage({
 		text: 'state'
@@ -57,8 +61,10 @@
 			document.querySelector('.enable-copy').remove();
 			document.querySelector('.abs-mode').remove();
 			document.querySelector('.description').remove();
-			document.querySelector('.state').style = 'color: #a98e8e; height: 150px; display: grid; align-items: center;';
-			document.querySelector('.state span').innerHTML = 'Unable to run on this page';
+			stateEl.classList.add('state--blocked');
+			stateLabel.textContent = 'Unavailable';
+			stateValue.textContent = 'This page cannot be modified';
+			isBlocked = true;
 		}
 	});
 
@@ -99,6 +105,9 @@
 	}
 
 	function state(r) {
+		if (isBlocked) {
+			return;
+		}
 		if (c === true) {
 			document.querySelector('.enable-copy img').src = 'images/on.png';
 		} else {
@@ -114,9 +123,11 @@
 				reload();
 		}
 		if (c === false && a === false) {
-			document.querySelector('.state span').innerHTML = 'Not Enabled';
+			stateValue.textContent = 'Not Enabled';
+			stateEl.classList.remove('is-enabled');
 		} else {
-			document.querySelector('.state span').innerHTML = 'Enabled';
+			stateValue.textContent = 'Enabled';
+			stateEl.classList.add('is-enabled');
 		}
 	}
 

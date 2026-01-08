@@ -24,6 +24,5 @@ Restore right-click and copy on restrictive pages with quick toggles and an opti
 ## Support
 Email: support@rightclickunbound.app
 
-## Store Links
+## Store Link
 - Chrome: https://chromewebstore.google.com/detail/rightclick-unbound/jdocbkpgdakpekjlhemmfcncgdjeiika
-- Firefox: https://addons.mozilla.org/firefox/addon/rightclick-unbound/
