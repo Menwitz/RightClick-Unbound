@@ -8,6 +8,9 @@
 		 user-select: text !important;
 	}`;
 	var guardEvents = ['copy', 'cut', 'paste', 'select', 'selectstart', 'contextmenu'];
+	var fallbackEvents = ['contextmenu', 'copy', 'cut', 'paste', 'mouseup', 'mousedown', 'keyup', 'keydown', 'drag', 'dragstart', 'select', 'selectstart'];
+	var adaptiveState = window.__rcuAdaptive || { escalated: false };
+	window.__rcuAdaptive = adaptiveState;
 
 	function allowInlineSelect(element) {
 		if (!element || !element.style) {
@@ -57,12 +60,19 @@
 		}
 	}
 
-	function addEventGuards(target) {
-		if (!target || target.__rcuGuarded) {
+	function addEventGuards(target, events) {
+		if (!target) {
 			return;
 		}
-		target.__rcuGuarded = true;
-		guardEvents.forEach(function(event) {
+		if (!target.__rcuGuardedEvents) {
+			target.__rcuGuardedEvents = {};
+		}
+		var list = Array.isArray(events) ? events : guardEvents;
+		list.forEach(function(event) {
+			if (target.__rcuGuardedEvents[event]) {
+				return;
+			}
+			target.__rcuGuardedEvents[event] = true;
 			target.addEventListener(event, function(e) {
 				e.stopPropagation();
 			}, true);
@@ -72,7 +82,8 @@
 	function applyRoot(root) {
 		ensureStyle(root);
 		relaxSelection(root);
-		addEventGuards(root);
+		var events = adaptiveState.escalated ? fallbackEvents : guardEvents;
+		addEventGuards(root, events);
 	}
 
 	function observeRoot(root) {
@@ -115,6 +126,18 @@
 		for (var i = 0; i < nodes.length; i++) {
 			if (nodes[i].shadowRoot) {
 				installShadow(nodes[i].shadowRoot);
+			}
+		}
+	}
+
+	function applyFallbackToShadows(container) {
+		if (!container || !container.querySelectorAll) {
+			return;
+		}
+		var nodes = container.querySelectorAll('*');
+		for (var i = 0; i < nodes.length; i++) {
+			if (nodes[i].shadowRoot) {
+				addEventGuards(nodes[i].shadowRoot, fallbackEvents);
 			}
 		}
 	}
@@ -171,6 +194,45 @@
 		}
 	}
 
+	function probeContextMenuBlocked() {
+		try {
+			var container = document.body || document.documentElement;
+			if (!container || !container.appendChild) {
+				return false;
+			}
+			var probe = document.createElement('div');
+			probe.style.cssText = 'position:fixed;top:-9999px;width:1px;height:1px;';
+			container.appendChild(probe);
+			var event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, view: window });
+			var allowed = probe.dispatchEvent(event);
+			if (probe.parentNode) {
+				probe.parentNode.removeChild(probe);
+			}
+			return event.defaultPrevented || !allowed;
+		} catch (error) {
+			return false;
+		}
+	}
+
+	function maybeEscalate() {
+		if (adaptiveState.escalated) {
+			return;
+		}
+		if (!probeContextMenuBlocked()) {
+			return;
+		}
+		adaptiveState.escalated = true;
+		clearHandlers();
+		addEventGuards(document, fallbackEvents);
+		addEventGuards(window, fallbackEvents);
+		applyFallbackToShadows(document);
+	}
+
+	function scheduleAdaptiveProbe() {
+		setTimeout(maybeEscalate, 400);
+		setTimeout(maybeEscalate, 2000);
+	}
+
 	clearHandlers();
 	applyRoot(document);
 	var rootElement = document.documentElement || document.body;
@@ -179,6 +241,7 @@
 	}
 	scanShadowRoots(document);
 	patchAttachShadow();
+	scheduleAdaptiveProbe();
 
 	setTimeout(function() {
 		document.oncontextmenu = null;
