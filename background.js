@@ -497,10 +497,11 @@
 				if (state.c) {
 					chrome.scripting.executeScript({
 						target: { tabId: tabId, allFrames: true },
-						files: ['js/enable.js']
-					}, function() {
+						files: ['js/enable.js'],
+						world: 'MAIN'
+					}, function(results) {
 						var checkError = chrome.runtime.lastError;
-						if (checkError) {
+						if (checkError && (!results || results.length === 0)) {
 							recordInjectionError(tabId, tabUrl, checkError.message);
 						} else {
 							clearInjectionError(tabId);
@@ -511,10 +512,11 @@
 				if (state.a) {
 					chrome.scripting.executeScript({
 						target: { tabId: tabId, allFrames: true },
-						files: ['js/enableA.js']
-					}, function() {
+						files: ['js/enableA.js'],
+						world: 'MAIN'
+					}, function(results) {
 						var checkError = chrome.runtime.lastError;
-						if (checkError) {
+						if (checkError && (!results || results.length === 0)) {
 							recordInjectionError(tabId, tabUrl, checkError.message);
 						} else {
 							clearInjectionError(tabId);
