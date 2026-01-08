@@ -25,6 +25,7 @@ Tested scenarios:
 
 Privacy:
 - No data collected. No accounts. No tracking.
+- Privacy policy: see `PRIVACY.md` (replace with a public URL for store submission).
 
 Limitations:
 - Some sites may not be unlockable due to strict security policies.

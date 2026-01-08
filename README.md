@@ -21,6 +21,9 @@ Restore right-click and copy on restrictive pages with quick toggles and an opti
 - `scripting`: inject enable scripts on pages you opt into.
 - Host permissions (`<all_urls>`): allow running on any site you choose.
 
+## Privacy
+See `PRIVACY.md` for the full privacy policy.
+
 ## Support
 Email: support@rightclickunbound.app
 
