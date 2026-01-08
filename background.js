@@ -3,6 +3,7 @@
 	var websites_List = [];
 	var websites_Meta = {};
 	var custom_Rules = {};
+	var profile_Suggestions = {};
 	var session_Prefs = {
 		defaultEnabled: false,
 		autoDisableMinutes: 0,
@@ -12,7 +13,7 @@
 	var hostname;
 
 	function loadWebsites(callback) {
-		chrome.storage.local.get(['websites_List', 'websites_Meta', 'custom_rules', 'session_prefs'], function(value) {
+		chrome.storage.local.get(['websites_List', 'websites_Meta', 'custom_rules', 'session_prefs', 'profile_suggestions'], function(value) {
 			var rawList = Array.isArray(value.websites_List) ? value.websites_List : [];
 			var normalized = normalizeWebsitesList(rawList);
 			var metaInfo = normalizeWebsitesMeta(value.websites_Meta, normalized);
@@ -20,6 +21,7 @@
 			websites_Meta = metaInfo.meta;
 			custom_Rules = normalizeCustomRules(value.custom_rules);
 			session_Prefs = normalizeSessionPrefs(value.session_prefs);
+			profile_Suggestions = normalizeProfileSuggestions(value.profile_suggestions);
 			if (rawList.length !== normalized.length || metaInfo.changed) {
 				saveData();
 			}
@@ -116,6 +118,30 @@
 		var minutes = parseInt(prefs.autoDisableMinutes, 10);
 		if (!isNaN(minutes) && isFinite(minutes)) {
 			normalized.autoDisableMinutes = Math.max(0, minutes);
+		}
+		return normalized;
+	}
+
+	function normalizeProfileSuggestions(suggestions) {
+		var normalized = {};
+		if (!suggestions || typeof suggestions !== 'object') {
+			return normalized;
+		}
+		for (var host in suggestions) {
+			if (!Object.prototype.hasOwnProperty.call(suggestions, host)) {
+				continue;
+			}
+			var entry = suggestions[host];
+			if (!entry || typeof entry !== 'object') {
+				continue;
+			}
+			if (entry.mode !== 'c' && entry.mode !== 'a' && entry.mode !== 'dual') {
+				continue;
+			}
+			normalized[host] = {
+				mode: entry.mode,
+				updatedAt: typeof entry.updatedAt === 'number' ? entry.updatedAt : Date.now()
+			};
 		}
 		return normalized;
 	}
@@ -382,12 +408,33 @@
 	function sendState(tab, host, sessionData) {
 		var state = getEffectiveState(tab.id, host, sessionData);
 		var error = sessionData.errors && sessionData.errors[tab.id] ? sessionData.errors[tab.id] : null;
+		var suggestion = profile_Suggestions[host] ? profile_Suggestions[host].mode : null;
 		chrome.runtime.sendMessage({
 			c: state.c,
 			a: state.a,
 			session: state.session,
-			error: error
+			error: error,
+			suggested: suggestion
 		});
+	}
+
+	function saveProfileSuggestions() {
+		chrome.storage.local.set({
+			profile_suggestions: profile_Suggestions
+		});
+	}
+
+	function updateProfileSuggestion(host, tabId, sessionData) {
+		var state = getEffectiveState(tabId, host, sessionData);
+		if (!state.c && !state.a) {
+			return;
+		}
+		var mode = state.c && state.a ? 'dual' : (state.a ? 'a' : 'c');
+		if (profile_Suggestions[host] && profile_Suggestions[host].mode === mode) {
+			return;
+		}
+		profile_Suggestions[host] = { mode: mode, updatedAt: Date.now() };
+		saveProfileSuggestions();
 	}
 
 	function shouldAutoDisableSession(tabId, changeInfo, sessionData) {
@@ -1006,6 +1053,9 @@
 					saveData();
 				}
 			}
+		}
+		if (!sessionEnabled) {
+			updateProfileSuggestion(url, tab.id, sessionData);
 		}
 	}
 

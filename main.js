@@ -12,6 +12,8 @@
 	var failureEl = document.querySelector('.failure');
 	var failureText = document.querySelector('.failure-text');
 	var profileButtons = document.querySelectorAll('.profile-btn');
+	var suggestedProfile = null;
+	var suggestedModeEl = document.querySelector('.suggested-mode');
 
 	chrome.runtime.sendMessage({
 		text: 'state'
@@ -38,6 +40,10 @@
 		}
 		if (request.error !== undefined) {
 			updateFailure(request.error);
+		}
+		if (request.suggested !== undefined) {
+			suggestedProfile = request.suggested;
+			updateSuggestionUI();
 		}
 		state();
 	});
@@ -283,6 +289,38 @@
 				button.classList.add('is-active');
 			} else {
 				button.classList.remove('is-active');
+			}
+		});
+		updateSuggestionUI();
+	}
+
+	function updateSuggestionUI() {
+		if (!profileButtons.length) {
+			return;
+		}
+		var label = 'None';
+		profileButtons.forEach(function(button) {
+			button.classList.remove('is-suggested');
+		});
+		if (suggestedProfile === 'c') {
+			label = 'Light';
+			markSuggested('light');
+		} else if (suggestedProfile === 'a') {
+			label = 'Force';
+			markSuggested('force');
+		} else if (suggestedProfile === 'dual') {
+			label = 'Dual';
+			markSuggested('dual');
+		}
+		if (suggestedModeEl) {
+			suggestedModeEl.textContent = label;
+		}
+	}
+
+	function markSuggested(profile) {
+		profileButtons.forEach(function(button) {
+			if (button.getAttribute('data-profile') === profile) {
+				button.classList.add('is-suggested');
 			}
 		});
 	}

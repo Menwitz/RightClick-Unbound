@@ -15,3 +15,4 @@
 - Lock inspector for pinpointing and neutralizing blockers.
 - Smart overlay cleanup for transparent selection blockers.
 - Clean copy for plain text and Markdown selections.
+- Local profile suggestions based on what works per site.

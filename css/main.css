@@ -357,6 +357,21 @@ div, img {
 	outline-offset: 2px;
 }
 
+.profile-btn.is-suggested:not(.is-active) {
+	border-color: var(--accent);
+	color: var(--ink);
+}
+
+.profile-suggestion {
+	font-size: 10px;
+	color: var(--muted);
+}
+
+.profile-suggestion .suggested-mode {
+	color: var(--ink);
+	font-weight: 600;
+}
+
 @keyframes popupIn {
 	from {
 		opacity: 0;
