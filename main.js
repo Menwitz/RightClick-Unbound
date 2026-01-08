@@ -9,11 +9,19 @@
 	});
 
 	chrome.runtime.onMessage.addListener(function(request) {
-		if (request.c === 'true') {
+		if (typeof request.c === 'boolean') {
+			c = request.c;
+		} else if (request.c === 'true') {
 			c = true;
+		} else if (request.c === 'false') {
+			c = false;
 		}
-		if (request.a === 'true') {
+		if (typeof request.a === 'boolean') {
+			a = request.a;
+		} else if (request.a === 'true') {
 			a = true;
+		} else if (request.a === 'false') {
+			a = false;
 		}
 		state();
 	});

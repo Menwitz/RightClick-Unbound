@@ -4,8 +4,17 @@
 		u = document.querySelector('#user-list');
 		chrome.storage.local.get('websites_List', function(value) {
 			if (value.websites_List !== undefined) {
+				var seen = {};
 				for (var i = 0; i < value.websites_List.length; i++) {
-					getData(u, value.websites_List[i]);
+					var entry = value.websites_List[i];
+					if (typeof entry !== 'string') {
+						continue;
+					}
+					if (seen[entry]) {
+						continue;
+					}
+					seen[entry] = true;
+					getData(u, entry);
 				}
 				empty(u);
 			} else {
