@@ -101,6 +101,8 @@
 			<button class="rcu-button" type="button" data-action="session">Session Only</button>
 			<button class="rcu-button" type="button" data-action="inspect">Inspect Locks</button>
 			<button class="rcu-button" type="button" data-action="overlays">Remove Overlays</button>
+			<button class="rcu-button" type="button" data-action="clean-copy">Clean Copy</button>
+			<button class="rcu-button" type="button" data-action="markdown-copy">Copy Markdown</button>
 			<button class="rcu-button" type="button" data-action="disable">Disable</button>
 		</div>
 		<div class="rcu-footer">Disabling may require a reload.</div>
@@ -153,6 +155,14 @@
 		}
 		if (action === 'overlays') {
 			chrome.runtime.sendMessage({ text: 'overlay-clean' });
+			return;
+		}
+		if (action === 'clean-copy') {
+			chrome.runtime.sendMessage({ text: 'clean-copy' });
+			return;
+		}
+		if (action === 'markdown-copy') {
+			chrome.runtime.sendMessage({ text: 'markdown-copy' });
 			return;
 		}
 		if (action === 'disable') {

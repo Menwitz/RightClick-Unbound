@@ -495,6 +495,8 @@
 		panel: 'rcu-panel',
 		inspect: 'rcu-inspect',
 		overlays: 'rcu-overlays',
+		cleanCopy: 'rcu-clean-copy',
+		mdCopy: 'rcu-md-copy',
 		settings: 'rcu-settings'
 	};
 
@@ -548,6 +550,18 @@
 				contexts: ['all']
 			});
 			chrome.contextMenus.create({
+				id: menuIds.cleanCopy,
+				parentId: menuIds.root,
+				title: 'Copy Clean Text',
+				contexts: ['all']
+			});
+			chrome.contextMenus.create({
+				id: menuIds.mdCopy,
+				parentId: menuIds.root,
+				title: 'Copy as Markdown',
+				contexts: ['all']
+			});
+			chrome.contextMenus.create({
 				id: menuIds.settings,
 				parentId: menuIds.root,
 				title: 'Open Settings',
@@ -568,6 +582,8 @@
 			chrome.contextMenus.update(menuIds.panel, { enabled: false });
 			chrome.contextMenus.update(menuIds.inspect, { enabled: false });
 			chrome.contextMenus.update(menuIds.overlays, { enabled: false });
+			chrome.contextMenus.update(menuIds.cleanCopy, { enabled: false });
+			chrome.contextMenus.update(menuIds.mdCopy, { enabled: false });
 			chrome.contextMenus.refresh();
 			return;
 		}
@@ -580,6 +596,8 @@
 		chrome.contextMenus.update(menuIds.panel, { enabled: true });
 		chrome.contextMenus.update(menuIds.inspect, { enabled: true });
 		chrome.contextMenus.update(menuIds.overlays, { enabled: true });
+		chrome.contextMenus.update(menuIds.cleanCopy, { enabled: true });
+		chrome.contextMenus.update(menuIds.mdCopy, { enabled: true });
 		chrome.contextMenus.refresh();
 	}
 
@@ -622,6 +640,35 @@
 			} else {
 				clearInjectionError(tabId);
 			}
+		});
+	}
+
+	function runCleanCopy(tabId, tabUrl, mode) {
+		chrome.scripting.executeScript({
+			target: { tabId: tabId },
+			func: function(copyMode) {
+				if (document && document.documentElement) {
+					document.documentElement.setAttribute('data-rcu-copy-mode', copyMode);
+				}
+			},
+			args: [mode || 'text']
+		}, function() {
+			var checkError = chrome.runtime.lastError;
+			if (checkError) {
+				recordInjectionError(tabId, tabUrl, checkError.message);
+				return;
+			}
+			chrome.scripting.executeScript({
+				target: { tabId: tabId },
+				files: ['js/clean-copy.js']
+			}, function() {
+				var checkCopyError = chrome.runtime.lastError;
+				if (checkCopyError) {
+					recordInjectionError(tabId, tabUrl, checkCopyError.message);
+				} else {
+					clearInjectionError(tabId);
+				}
+			});
 		});
 	}
 
@@ -717,6 +764,14 @@
 						removeSelectionOverlays(tab.id, tab.url);
 						return;
 					}
+					if (text === 'clean-copy') {
+						runCleanCopy(tab.id, tab.url, 'text');
+						return;
+					}
+					if (text === 'markdown-copy') {
+						runCleanCopy(tab.id, tab.url, 'markdown');
+						return;
+					}
 					enableCopy(host, text, tab, sessionData);
 				});
 			});
@@ -758,6 +813,22 @@
 		if (info.menuItemId === menuIds.overlays) {
 			if (isHttpUrl(tab.url)) {
 				removeSelectionOverlays(tab.id, tab.url);
+			} else {
+				recordInjectionError(tab.id, tab.url, 'Unsupported page');
+			}
+			return;
+		}
+		if (info.menuItemId === menuIds.cleanCopy) {
+			if (isHttpUrl(tab.url)) {
+				runCleanCopy(tab.id, tab.url, 'text');
+			} else {
+				recordInjectionError(tab.id, tab.url, 'Unsupported page');
+			}
+			return;
+		}
+		if (info.menuItemId === menuIds.mdCopy) {
+			if (isHttpUrl(tab.url)) {
+				runCleanCopy(tab.id, tab.url, 'markdown');
 			} else {
 				recordInjectionError(tab.id, tab.url, 'Unsupported page');
 			}
