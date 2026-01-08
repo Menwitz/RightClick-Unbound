@@ -10,6 +10,7 @@
 		initBackup();
 		initSessionPrefs();
 		initVault();
+		initDomainTools();
 	}
 
 	function loadUserList() {
@@ -144,6 +145,65 @@
 			});
 		}
 		loadVault();
+	}
+
+	function initDomainTools() {
+		var hostInput = document.querySelector('#domain-host');
+		var enableCopy = document.querySelector('#domain-enable-copy');
+		var enableForce = document.querySelector('#domain-enable-force');
+		var disableAll = document.querySelector('#domain-disable');
+		var applyTabs = document.querySelector('#domain-apply');
+		if (!hostInput) {
+			return;
+		}
+		if (enableCopy) {
+			enableCopy.addEventListener('click', function() {
+				handleDomainAction(hostInput.value, 'c', true);
+			});
+		}
+		if (enableForce) {
+			enableForce.addEventListener('click', function() {
+				handleDomainAction(hostInput.value, 'a', true);
+			});
+		}
+		if (disableAll) {
+			disableAll.addEventListener('click', function() {
+				handleDomainAction(hostInput.value, 'all', false);
+			});
+		}
+		if (applyTabs) {
+			applyTabs.addEventListener('click', function() {
+				var host = normalizeHost(hostInput.value);
+				if (!host) {
+					setDomainStatus('Enter a valid hostname.', true);
+					return;
+				}
+				chrome.runtime.sendMessage({
+					text: 'domain-apply',
+					host: host
+				});
+				setDomainStatus('Applying to open tabs.');
+			});
+		}
+	}
+
+	function handleDomainAction(value, mode, enabled) {
+		var host = normalizeHost(value);
+		if (!host) {
+			setDomainStatus('Enter a valid hostname.', true);
+			return;
+		}
+		chrome.runtime.sendMessage({
+			text: 'domain-action',
+			host: host,
+			mode: mode,
+			enabled: enabled
+		});
+		if (enabled) {
+			setDomainStatus('Enabled for all open tabs.');
+		} else {
+			setDomainStatus('Disabled. Reload open tabs to apply.');
+		}
 	}
 
 	function initSessionPrefs() {
@@ -828,6 +888,19 @@
 
 	function setSessionStatus(message, isError) {
 		var status = document.querySelector('#session-status');
+		if (!status) {
+			return;
+		}
+		status.textContent = message || '';
+		if (isError) {
+			status.classList.add('is-error');
+		} else {
+			status.classList.remove('is-error');
+		}
+	}
+
+	function setDomainStatus(message, isError) {
+		var status = document.querySelector('#domain-status');
 		if (!status) {
 			return;
 		}

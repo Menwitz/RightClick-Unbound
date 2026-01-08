@@ -146,6 +146,18 @@
 		return normalized;
 	}
 
+	function normalizeHostInput(value) {
+		var host = (value || '').trim().toLowerCase();
+		host = host.replace(/^https?:\/\//, '');
+		host = host.replace(/\/.*$/, '');
+		host = host.replace(/:\d+$/, '');
+		host = host.replace(/\s+/g, '');
+		if (host === 'localhost' || /\./.test(host)) {
+			return host;
+		}
+		return '';
+	}
+
 	function removeEntry(entry) {
 		var before = websites_List.length;
 		websites_List = websites_List.filter(function(item) {
@@ -435,6 +447,113 @@
 		}
 		profile_Suggestions[host] = { mode: mode, updatedAt: Date.now() };
 		saveProfileSuggestions();
+	}
+
+	function applyDomainStateToTabs(host, sessionData, callback) {
+		chrome.tabs.query({}, function(tabs) {
+			var count = 0;
+			tabs.forEach(function(tab) {
+				if (!tab || !isHttpUrl(tab.url)) {
+					return;
+				}
+				var tabHost = (new URL(tab.url)).hostname;
+				if (tabHost !== host) {
+					return;
+				}
+				inject(tab.id, tabHost, tab.url, sessionData);
+				count += 1;
+			});
+			if (callback) {
+				callback(count);
+			}
+		});
+	}
+
+	function notifyReloadTabs(host, message) {
+		chrome.tabs.query({}, function(tabs) {
+			tabs.forEach(function(tab) {
+				if (!tab || !isHttpUrl(tab.url)) {
+					return;
+				}
+				var tabHost = (new URL(tab.url)).hostname;
+				if (tabHost !== host) {
+					return;
+				}
+				showDomainToast(tab.id, message);
+			});
+		});
+	}
+
+	function showDomainToast(tabId, message) {
+		chrome.scripting.executeScript({
+			target: { tabId: tabId },
+			func: function(text) {
+				var existing = document.getElementById('rcu-domain-toast');
+				if (existing) {
+					existing.remove();
+				}
+				var toast = document.createElement('div');
+				toast.id = 'rcu-domain-toast';
+				toast.textContent = text;
+				toast.style.position = 'fixed';
+				toast.style.bottom = '18px';
+				toast.style.left = '18px';
+				toast.style.background = '#0b3d3e';
+				toast.style.color = '#ffffff';
+				toast.style.padding = '8px 12px';
+				toast.style.borderRadius = '999px';
+				toast.style.fontFamily = '"Avenir Next", "Avenir", "Gill Sans", "Trebuchet MS", sans-serif';
+				toast.style.fontSize = '11px';
+				toast.style.zIndex = '2147483647';
+				toast.style.boxShadow = '0 12px 26px rgba(11, 61, 62, 0.18)';
+				(document.body || document.documentElement).appendChild(toast);
+				setTimeout(function() {
+					if (toast && toast.parentNode) {
+						toast.parentNode.removeChild(toast);
+					}
+				}, 2200);
+			},
+			args: [message]
+		});
+	}
+
+	function handleDomainAction(request, tab, sessionData) {
+		var host = normalizeHostInput(request.host);
+		if (!host) {
+			return;
+		}
+		var mode = request.mode;
+		var enabled = !!request.enabled;
+		var changed = false;
+		if (!enabled && mode === 'all') {
+			changed = removeEntry(host + '#c') || changed;
+			changed = removeEntry(host + '#a') || changed;
+		} else if (mode === 'c' || mode === 'a') {
+			var entry = host + '#' + mode;
+			if (enabled) {
+				if (websites_List.indexOf(entry) === -1) {
+					websites_List.push(entry);
+					changed = true;
+				}
+				updateMeta(entry);
+			} else {
+				changed = removeEntry(entry) || changed;
+			}
+		}
+		if (changed) {
+			saveData();
+		}
+		if (enabled) {
+			applyDomainStateToTabs(host, sessionData, function(count) {
+				if (tab && isHttpUrl(tab.url)) {
+					showDomainToast(tab.id, 'Applied to ' + count + ' tabs.');
+				} else if (lastActiveHttpTabId !== null) {
+					showDomainToast(lastActiveHttpTabId, 'Applied to ' + count + ' tabs.');
+				}
+			});
+		} else {
+			notifyReloadTabs(host, 'Reload to disable on this site.');
+		}
 	}
 
 	function shouldAutoDisableSession(tabId, changeInfo, sessionData) {
@@ -912,6 +1031,35 @@
 		loadWebsites(function() {
 			loadSessionData(function(sessionData) {
 				resolveMessageTab(sender, function(tab) {
+					if (text === 'domain-action') {
+						handleDomainAction(request, tab, sessionData);
+						return;
+					}
+					if (text === 'domain-apply') {
+						var domainHost = normalizeHostInput(request.host || (tab && tab.url ? (new URL(tab.url)).hostname : ''));
+						if (domainHost) {
+							applyDomainStateToTabs(domainHost, sessionData, function(count) {
+								if (tab && isHttpUrl(tab.url)) {
+									showDomainToast(tab.id, 'Applied to ' + count + ' tabs.');
+								}
+							});
+						}
+						return;
+					}
+					if (text === 'rule-builder') {
+						if (tab && isHttpUrl(tab.url)) {
+							openRuleBuilder(tab.id, tab.url);
+							return;
+						}
+						if (lastActiveHttpTabId !== null) {
+							chrome.tabs.get(lastActiveHttpTabId, function(lastTab) {
+								if (lastTab && isHttpUrl(lastTab.url)) {
+									openRuleBuilder(lastTab.id, lastTab.url);
+								}
+							});
+						}
+						return;
+					}
 					if (!tab || !isHttpUrl(tab.url)) {
 						return;
 					}
@@ -938,20 +1086,6 @@
 					}
 					if (text === 'markdown-copy') {
 						runCleanCopy(tab.id, tab.url, 'markdown');
-						return;
-					}
-					if (text === 'rule-builder') {
-						if (tab && isHttpUrl(tab.url)) {
-							openRuleBuilder(tab.id, tab.url);
-							return;
-						}
-						if (lastActiveHttpTabId !== null) {
-							chrome.tabs.get(lastActiveHttpTabId, function(lastTab) {
-								if (lastTab && isHttpUrl(lastTab.url)) {
-									openRuleBuilder(lastTab.id, lastTab.url);
-								}
-							});
-						}
 						return;
 					}
 					if (text === 'save-snippet') {

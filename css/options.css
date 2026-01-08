@@ -555,6 +555,53 @@ a:hover {
 	margin-top: 8px;
 }
 
+.domain-actions {
+	display: grid;
+	gap: 10px;
+}
+
+.domain-actions input {
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	padding: 8px 10px;
+	font-size: 12px;
+	font-family: var(--font-sans);
+}
+
+.domain-buttons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.domain-buttons button {
+	background: var(--ink);
+	color: #fff;
+	border: 1px solid transparent;
+	border-radius: 8px;
+	padding: 8px 12px;
+	font-size: 12px;
+	cursor: pointer;
+	font-weight: 600;
+}
+
+.domain-buttons #domain-disable,
+.domain-buttons #domain-apply {
+	background: transparent;
+	color: var(--ink-soft);
+	border: 1px solid var(--border);
+}
+
+.domain-status {
+	font-size: 11px;
+	color: var(--muted);
+	min-height: 14px;
+}
+
+.domain-status.is-error {
+	color: #b04a2f;
+}
+
 .backup-hint {
 	font-size: 12px;
 	color: var(--ink-soft);
