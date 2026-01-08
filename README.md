@@ -26,6 +26,7 @@ See `PRIVACY.md` for the full privacy policy.
 
 ## Support
 Email: support@rightclickunbound.app
+For troubleshooting tips, see `SUPPORT.md`.
 
 ## Store Link
 - Chrome: https://chromewebstore.google.com/detail/rightclick-unbound/jdocbkpgdakpekjlhemmfcncgdjeiika

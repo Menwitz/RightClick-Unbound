@@ -226,6 +226,15 @@ body {
 	font-size: 12px;
 }
 
+.section a {
+	color: var(--ink);
+	text-decoration: underline;
+}
+
+.section a:hover {
+	color: var(--accent);
+}
+
 .footer {
 	display: block;
 	margin: auto;

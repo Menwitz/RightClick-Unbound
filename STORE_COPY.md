@@ -32,6 +32,7 @@ Limitations:
 
 Support:
 - Email: support@rightclickunbound.app
+- Support/FAQ: see `SUPPORT.md` (replace with a public URL for store submission).
 
 ## Permissions rationale
 - tabs, activeTab: detect the active tab and reload when toggles change.
