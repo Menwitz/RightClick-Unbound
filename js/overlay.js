@@ -104,6 +104,7 @@
 			<button class="rcu-button" type="button" data-action="clean-copy">Clean Copy</button>
 			<button class="rcu-button" type="button" data-action="markdown-copy">Copy Markdown</button>
 			<button class="rcu-button" type="button" data-action="rule-builder">Rule Builder</button>
+			<button class="rcu-button" type="button" data-action="save-snippet">Save Snippet</button>
 			<button class="rcu-button" type="button" data-action="disable">Disable</button>
 		</div>
 		<div class="rcu-footer">Disabling may require a reload.</div>
@@ -168,6 +169,10 @@
 		}
 		if (action === 'rule-builder') {
 			chrome.runtime.sendMessage({ text: 'rule-builder' });
+			return;
+		}
+		if (action === 'save-snippet') {
+			chrome.runtime.sendMessage({ text: 'save-snippet' });
 			return;
 		}
 		if (action === 'disable') {

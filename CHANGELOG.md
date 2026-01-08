@@ -17,3 +17,4 @@
 - Clean copy for plain text and Markdown selections.
 - Local profile suggestions based on what works per site.
 - Rule Builder to draft CSS selectors with live preview.
+- Snippet Vault with tags, search, and quick copy.

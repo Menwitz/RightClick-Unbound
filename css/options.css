@@ -453,6 +453,108 @@ a:hover {
 	box-shadow: none;
 }
 
+.vault-actions {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.vault-actions input {
+	flex: 1;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	padding: 8px 10px;
+	font-size: 12px;
+	font-family: var(--font-sans);
+}
+
+.vault-actions button {
+	background: transparent;
+	color: var(--ink-soft);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	padding: 8px 12px;
+	font-size: 12px;
+	cursor: pointer;
+	font-weight: 600;
+	transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.vault-actions button:hover {
+	transform: translateY(-1px);
+	box-shadow: var(--shadow-soft);
+}
+
+.vault-actions button:active {
+	transform: translateY(0);
+	box-shadow: none;
+}
+
+.vault-list {
+	margin-top: 12px;
+	display: grid;
+	gap: 10px;
+}
+
+.vault-item {
+	border: 1px solid var(--border);
+	border-radius: 12px;
+	padding: 12px;
+	background: #fff;
+	box-shadow: var(--shadow-soft);
+	display: grid;
+	gap: 8px;
+}
+
+.vault-text {
+	font-size: 12px;
+	color: var(--ink);
+	line-height: 1.4;
+	max-height: 64px;
+	overflow: hidden;
+}
+
+.vault-meta {
+	font-size: 10px;
+	color: var(--muted);
+}
+
+.vault-tags {
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	padding: 6px 8px;
+	font-size: 11px;
+	font-family: var(--font-sans);
+}
+
+.vault-buttons {
+	display: flex;
+	gap: 8px;
+}
+
+.vault-buttons button {
+	background: var(--ink);
+	color: #fff;
+	border: 1px solid transparent;
+	border-radius: 8px;
+	padding: 6px 10px;
+	font-size: 11px;
+	cursor: pointer;
+	font-weight: 600;
+}
+
+.vault-buttons .vault-delete {
+	background: transparent;
+	color: var(--ink-soft);
+	border: 1px solid var(--border);
+}
+
+.vault-empty {
+	font-size: 12px;
+	color: var(--muted);
+	margin-top: 8px;
+}
+
 .backup-hint {
 	font-size: 12px;
 	color: var(--ink-soft);

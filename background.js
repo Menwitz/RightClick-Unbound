@@ -545,6 +545,7 @@
 		cleanCopy: 'rcu-clean-copy',
 		mdCopy: 'rcu-md-copy',
 		ruleBuilder: 'rcu-rule-builder',
+		snippetSave: 'rcu-snippet-save',
 		settings: 'rcu-settings'
 	};
 	var lastActiveHttpTabId = null;
@@ -617,6 +618,12 @@
 				contexts: ['all']
 			});
 			chrome.contextMenus.create({
+				id: menuIds.snippetSave,
+				parentId: menuIds.root,
+				title: 'Save Selection to Snippet Vault',
+				contexts: ['all']
+			});
+			chrome.contextMenus.create({
 				id: menuIds.settings,
 				parentId: menuIds.root,
 				title: 'Open Settings',
@@ -640,6 +647,7 @@
 			chrome.contextMenus.update(menuIds.cleanCopy, { enabled: false });
 			chrome.contextMenus.update(menuIds.mdCopy, { enabled: false });
 			chrome.contextMenus.update(menuIds.ruleBuilder, { enabled: false });
+			chrome.contextMenus.update(menuIds.snippetSave, { enabled: false });
 			chrome.contextMenus.refresh();
 			return;
 		}
@@ -655,6 +663,7 @@
 		chrome.contextMenus.update(menuIds.cleanCopy, { enabled: true });
 		chrome.contextMenus.update(menuIds.mdCopy, { enabled: true });
 		chrome.contextMenus.update(menuIds.ruleBuilder, { enabled: true });
+		chrome.contextMenus.update(menuIds.snippetSave, { enabled: true });
 		chrome.contextMenus.refresh();
 	}
 
@@ -740,6 +749,94 @@
 			} else {
 				clearInjectionError(tabId);
 			}
+		});
+	}
+
+	function saveSnippetFromTab(tabId, tabUrl) {
+		chrome.scripting.executeScript({
+			target: { tabId: tabId },
+			func: function() {
+				function getSelectionInfo() {
+					var selection = window.getSelection();
+					if (selection && selection.rangeCount > 0) {
+						var text = selection.toString();
+						if (text && text.trim()) {
+							return text.trim();
+						}
+					}
+					var active = document.activeElement;
+					if (active && (active.tagName === 'TEXTAREA' || (active.tagName === 'INPUT' && /^(text|search|url|email|tel|password)$/i.test(active.type)))) {
+						var start = active.selectionStart;
+						var end = active.selectionEnd;
+						if (typeof start === 'number' && typeof end === 'number' && start !== end) {
+							return active.value.substring(start, end).trim();
+						}
+					}
+					return '';
+				}
+				return {
+					text: getSelectionInfo(),
+					url: location.href,
+					title: document.title || ''
+				};
+			}
+		}, function(results) {
+			var data = results && results[0] ? results[0].result : null;
+			if (!data || !data.text) {
+				showSnippetToast(tabId, 'Select text to save.');
+				return;
+			}
+			chrome.storage.local.get('snippet_vault', function(value) {
+				var list = Array.isArray(value.snippet_vault) ? value.snippet_vault : [];
+				var snippet = {
+					id: String(Date.now()) + '-' + Math.random().toString(16).slice(2),
+					text: data.text,
+					tags: [],
+					url: data.url,
+					title: data.title,
+					createdAt: Date.now()
+				};
+				list.unshift(snippet);
+				if (list.length > 200) {
+					list = list.slice(0, 200);
+				}
+				chrome.storage.local.set({ snippet_vault: list }, function() {
+					showSnippetToast(tabId, 'Snippet saved.');
+				});
+			});
+		});
+	}
+
+	function showSnippetToast(tabId, message) {
+		chrome.scripting.executeScript({
+			target: { tabId: tabId },
+			func: function(text) {
+				var existing = document.getElementById('rcu-snippet-toast');
+				if (existing) {
+					existing.remove();
+				}
+				var toast = document.createElement('div');
+				toast.id = 'rcu-snippet-toast';
+				toast.textContent = text;
+				toast.style.position = 'fixed';
+				toast.style.bottom = '18px';
+				toast.style.right = '18px';
+				toast.style.background = '#0b3d3e';
+				toast.style.color = '#ffffff';
+				toast.style.padding = '8px 12px';
+				toast.style.borderRadius = '999px';
+				toast.style.fontFamily = '"Avenir Next", "Avenir", "Gill Sans", "Trebuchet MS", sans-serif';
+				toast.style.fontSize = '11px';
+				toast.style.zIndex = '2147483647';
+				toast.style.boxShadow = '0 12px 26px rgba(11, 61, 62, 0.18)';
+				(document.body || document.documentElement).appendChild(toast);
+				setTimeout(function() {
+					if (toast && toast.parentNode) {
+						toast.parentNode.removeChild(toast);
+					}
+				}, 2200);
+			},
+			args: [message]
 		});
 	}
 
@@ -857,6 +954,10 @@
 						}
 						return;
 					}
+					if (text === 'save-snippet') {
+						saveSnippetFromTab(tab.id, tab.url);
+						return;
+					}
 					enableCopy(host, text, tab, sessionData);
 				});
 			});
@@ -922,6 +1023,14 @@
 		if (info.menuItemId === menuIds.ruleBuilder) {
 			if (isHttpUrl(tab.url)) {
 				openRuleBuilder(tab.id, tab.url);
+			} else {
+				recordInjectionError(tab.id, tab.url, 'Unsupported page');
+			}
+			return;
+		}
+		if (info.menuItemId === menuIds.snippetSave) {
+			if (isHttpUrl(tab.url)) {
+				saveSnippetFromTab(tab.id, tab.url);
 			} else {
 				recordInjectionError(tab.id, tab.url, 'Unsupported page');
 			}
