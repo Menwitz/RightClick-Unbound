@@ -27,6 +27,7 @@
 - Validate MV3 compatibility across Chrome stable/beta.
 - Produce store assets and finalize listing copy.
 - Verify versioning, changelog, and release notes.
+  - References: `TEST_MATRIX.md` and `RELEASE_CHECKLIST.md`.
 
 ## Phase 5 - Growth and feedback (ongoing)
 - Add a feedback link and basic support FAQ.
