@@ -494,6 +494,7 @@
 		session: 'rcu-session',
 		panel: 'rcu-panel',
 		inspect: 'rcu-inspect',
+		overlays: 'rcu-overlays',
 		settings: 'rcu-settings'
 	};
 
@@ -541,6 +542,12 @@
 				contexts: ['all']
 			});
 			chrome.contextMenus.create({
+				id: menuIds.overlays,
+				parentId: menuIds.root,
+				title: 'Remove Selection Overlays',
+				contexts: ['all']
+			});
+			chrome.contextMenus.create({
 				id: menuIds.settings,
 				parentId: menuIds.root,
 				title: 'Open Settings',
@@ -560,6 +567,7 @@
 			chrome.contextMenus.update(menuIds.session, { checked: false, enabled: false });
 			chrome.contextMenus.update(menuIds.panel, { enabled: false });
 			chrome.contextMenus.update(menuIds.inspect, { enabled: false });
+			chrome.contextMenus.update(menuIds.overlays, { enabled: false });
 			chrome.contextMenus.refresh();
 			return;
 		}
@@ -571,6 +579,7 @@
 		chrome.contextMenus.update(menuIds.session, { checked: sessionEnabled, enabled: true });
 		chrome.contextMenus.update(menuIds.panel, { enabled: true });
 		chrome.contextMenus.update(menuIds.inspect, { enabled: true });
+		chrome.contextMenus.update(menuIds.overlays, { enabled: true });
 		chrome.contextMenus.refresh();
 	}
 
@@ -592,6 +601,20 @@
 		chrome.scripting.executeScript({
 			target: { tabId: tabId },
 			files: ['js/inspector.js']
+		}, function() {
+			var checkError = chrome.runtime.lastError;
+			if (checkError) {
+				recordInjectionError(tabId, tabUrl, checkError.message);
+			} else {
+				clearInjectionError(tabId);
+			}
+		});
+	}
+
+	function removeSelectionOverlays(tabId, tabUrl) {
+		chrome.scripting.executeScript({
+			target: { tabId: tabId },
+			files: ['js/overlays.js']
 		}, function() {
 			var checkError = chrome.runtime.lastError;
 			if (checkError) {
@@ -690,6 +713,10 @@
 						showInspector(tab.id, tab.url);
 						return;
 					}
+					if (text === 'overlay-clean') {
+						removeSelectionOverlays(tab.id, tab.url);
+						return;
+					}
 					enableCopy(host, text, tab, sessionData);
 				});
 			});
@@ -723,6 +750,14 @@
 		if (info.menuItemId === menuIds.inspect) {
 			if (isHttpUrl(tab.url)) {
 				showInspector(tab.id, tab.url);
+			} else {
+				recordInjectionError(tab.id, tab.url, 'Unsupported page');
+			}
+			return;
+		}
+		if (info.menuItemId === menuIds.overlays) {
+			if (isHttpUrl(tab.url)) {
+				removeSelectionOverlays(tab.id, tab.url);
 			} else {
 				recordInjectionError(tab.id, tab.url, 'Unsupported page');
 			}

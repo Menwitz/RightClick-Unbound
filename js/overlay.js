@@ -100,6 +100,7 @@
 			<button class="rcu-button" type="button" data-action="force">Force Mode</button>
 			<button class="rcu-button" type="button" data-action="session">Session Only</button>
 			<button class="rcu-button" type="button" data-action="inspect">Inspect Locks</button>
+			<button class="rcu-button" type="button" data-action="overlays">Remove Overlays</button>
 			<button class="rcu-button" type="button" data-action="disable">Disable</button>
 		</div>
 		<div class="rcu-footer">Disabling may require a reload.</div>
@@ -148,6 +149,10 @@
 		}
 		if (action === 'inspect') {
 			chrome.runtime.sendMessage({ text: 'inspect-locks' });
+			return;
+		}
+		if (action === 'overlays') {
+			chrome.runtime.sendMessage({ text: 'overlay-clean' });
 			return;
 		}
 		if (action === 'disable') {
